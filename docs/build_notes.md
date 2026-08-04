@@ -31,3 +31,13 @@ Current build status:
 Before public release, the exact GUDHI and Boost versions should be identified and the installation instructions should be made independent of the local HPC path.
 
 The CELL variants ising2d4-* and isingtr6-* are not built by default because they were not used in the analysis.
+## Current working build
+
+The simulation code builds successfully on Apocrita with:
+
+module load boost/1.85.0-gcc-12.2.0
+cd src/simulation
+ln -s /data/home/mpx641/Ising/IsingModels/gudhi gudhi
+make
+
+The default Makefile builds only the executables used in the analysis. The CELL variants ising2d4-* and isingtr6-* are not built by default because they were not used in the analysis.
