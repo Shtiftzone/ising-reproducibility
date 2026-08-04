@@ -36,3 +36,10 @@ results/
 
 # Local external dependency path
 src/simulation/gudhi
+
+# Multihistogram build artifacts / executables
+src/multihistogram/Ac
+src/multihistogram/Autc
+src/multihistogram/Autoc
+src/multihistogram/Rw
+src/multihistogram/XTERM_VERSION*
