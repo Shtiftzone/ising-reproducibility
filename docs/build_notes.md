@@ -41,3 +41,16 @@ ln -s /data/home/mpx641/Ising/IsingModels/gudhi gudhi
 make
 
 The default Makefile builds only the executables used in the analysis. The CELL variants ising2d4-* and isingtr6-* are not built by default because they were not used in the analysis.
+
+## Multihistogram build
+
+The multihistogram analysis code is located in:
+
+src/multihistogram/
+
+It builds successfully on Apocrita with:
+
+cd src/multihistogram
+make
+
+The resulting executables are build artifacts and are not tracked by Git.
