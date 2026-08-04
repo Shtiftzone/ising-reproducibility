@@ -29,3 +29,5 @@ Current build status:
 - The next step is to identify the required Boost module on Apocrita.
 
 Before public release, the exact GUDHI and Boost versions should be identified and the installation instructions should be made independent of the local HPC path.
+
+The CELL variants ising2d4-* and isingtr6-* are not built by default because they were not used in the analysis.

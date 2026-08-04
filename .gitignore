@@ -33,3 +33,6 @@ isingtr6-*
 # Raw data and generated results
 data/raw/
 results/
+
+# Local external dependency path
+src/simulation/gudhi
