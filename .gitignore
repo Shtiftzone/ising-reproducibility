@@ -6,3 +6,30 @@ __pycache__/
 
 data/raw/
 results/
+
+# Outputs
+results*/
+MH*/
+simulation_logs*.txt
+*.log
+*.out
+*.err
+
+# Build artifacts
+*.o
+*.d
+
+# Executables
+betti3d
+ising2d-*
+ising2d4-*
+ising3d-*
+ising3d6-*
+ising4d-*
+ising4d8-*
+isingtr-*
+isingtr6-*
+
+# Raw data and generated results
+data/raw/
+results/
