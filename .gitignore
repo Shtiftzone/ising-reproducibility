@@ -43,3 +43,8 @@ src/multihistogram/Autc
 src/multihistogram/Autoc
 src/multihistogram/Rw
 src/multihistogram/XTERM_VERSION*
+
+# Generated multihistogram input data
+data/eul2d/
+data/temperatures/
+*.dat
