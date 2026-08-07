@@ -7,8 +7,12 @@ if [[ $# -ne 3 ]]; then
     echo "Usage:"
     echo "  $0 <temperatures_dir> <simulation_results_dir> <output_data_dir>"
     echo
-    echo "Example:"
-    echo "  $0 data/temperatures /path/to/results data/eul2d"
+    echo "Examples:"
+    echo "  Square lattice:"
+    echo "    $0 data/temperatures/square results/square_simulations data/eul2d/square"
+    echo
+    echo "  Triangular lattice:"
+    echo "    $0 data/temperatures/triangular results/triangular_simulations data/eul2d/triangular"
     exit 1
 fi
 
