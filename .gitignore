@@ -20,22 +20,12 @@ simulation_logs*.txt
 *.d
 
 # Executables
-betti3d
 ising2d-*
-ising2d4-*
-ising3d-*
-ising3d6-*
-ising4d-*
-ising4d8-*
 isingtr-*
-isingtr6-*
 
 # Raw data and generated results
 data/raw/
 results/
-
-# Local external dependency path
-src/simulation/gudhi
 
 # Multihistogram build artifacts / executables
 src/multihistogram/Ac
@@ -48,3 +38,6 @@ src/multihistogram/XTERM_VERSION*
 data/eul2d/
 data/temperatures/
 *.dat
+
+# Generated simulation outputs
+results/simulations/

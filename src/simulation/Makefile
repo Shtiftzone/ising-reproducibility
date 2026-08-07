@@ -13,12 +13,7 @@ CC       ?= gcc
 CXX      ?= g++
 
 CFLAGS   = -std=c11 -O3 -Wall -pedantic -Iranlux-3.4
-CXXFLAGS = -std=c++14 -O3 -Wall -pedantic -Igudhi/include
-
-# Optional Boost path, usually provided by the HPC module system.
-ifdef BOOST_ROOT
-CXXFLAGS += -I$(BOOST_ROOT)/include
-endif
+CXXFLAGS = -std=c++14 -O3 -Wall -pedantic
 
 RANLUX = ranlux-3.4/ranlxs.o ranlux-3.4/ranlxd.o ranlux-3.4/ranlux_common.o
 LIBS   = -lm -lstdc++
@@ -29,7 +24,7 @@ LATTICE_SIZES_2D = 64 96 128 192 256 384 512 768 1024 1536 2048 3072
 # Main targets
 # ============================================================
 
-all: $(RANLUX) betti3d.o ising2d isingtr
+all: $(RANLUX) ising2d isingtr
 	@echo "Build completed."
 
 ising2d: $(RANLUX)
@@ -50,9 +45,6 @@ isingtr: $(RANLUX)
 
 ranlux-3.4/%.o: ranlux-3.4/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
-
-betti3d.o: betti3d.cc
-	$(CXX) $(CXXFLAGS) -c -o $@ $<
 
 # ============================================================
 # Clean

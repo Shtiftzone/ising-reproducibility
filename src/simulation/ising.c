@@ -32,10 +32,6 @@
 #include "conftr.c"
 #elif DIM == 2
 #include "conf2d.c"
-#elif DIM == 3
-#include "conf3d.c"
-#elif DIM == 4
-#include "conf4d.c"
 #else
 #error Unsupported configuration.
 #endif

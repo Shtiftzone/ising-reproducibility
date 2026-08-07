@@ -34,27 +34,6 @@ A local copy of RANLUX is included in:
 
     src/simulation/ranlux-3.4/
 
-### GUDHI
-
-The persistent homology code depends on GUDHI headers.
-
-The simulation Makefile expects GUDHI to be available at:
-
-    src/simulation/gudhi/include/
-
-The full GUDHI source tree is not included in this repository.
-
-A user can provide GUDHI, for example, by creating a symbolic link inside `src/simulation/`:
-
-    cd src/simulation
-    ln -s /path/to/gudhi gudhi
-
-### Boost
-
-GUDHI requires Boost headers.
-
-Users should make sure that Boost is available in their compiler include path. Depending on the system, this may be done through a package manager, environment module, or manual installation.
-
 ## Python requirements
 
 Python is used for post-processing and plotting.
