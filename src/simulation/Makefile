@@ -10,10 +10,8 @@ MAKEFLAGS += --no-builtin-rules
 .PHONY: all clean ising2d isingtr
 
 CC       ?= gcc
-CXX      ?= g++
 
 CFLAGS   = -std=c11 -O3 -Wall -pedantic -Iranlux-3.4
-CXXFLAGS = -std=c++14 -O3 -Wall -pedantic
 
 RANLUX = ranlux-3.4/ranlxs.o ranlux-3.4/ranlxd.o ranlux-3.4/ranlux_common.o
 LIBS   = -lm -lstdc++
@@ -29,13 +27,13 @@ all: $(RANLUX) ising2d isingtr
 
 ising2d: $(RANLUX)
 	@echo "Building 2D Ising executables..."
-	set -x; for L in $(LATTICE_SIZES_2D); do \
+	for L in $(LATTICE_SIZES_2D); do \
 	    $(CC) $(CFLAGS) -DDIM=2 -DL=$$L ising.c $(RANLUX) $(LIBS) -o ising2d-$$L; \
 	done
 
 isingtr: $(RANLUX)
 	@echo "Building triangular-lattice Ising executables..."
-	set -x; for L in $(LATTICE_SIZES_2D); do \
+	for L in $(LATTICE_SIZES_2D); do \
 	    $(CC) $(CFLAGS) -DL=$$L ising.c $(RANLUX) $(LIBS) -o isingtr-$$L; \
 	done
 
