@@ -110,7 +110,7 @@ Nconf   = 200
 
 ## Output structure
 
-Both simulation scripts use the same directory structure:
+The square- and triangular-lattice outputs are stored in separate top-level results directories, using the same internal directory structure:
 
 ```text
 results/<simulation_type>/T_TTTTT/size_L/
