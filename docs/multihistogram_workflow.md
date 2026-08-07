@@ -88,3 +88,30 @@ Each row in `conf-T-IDX.dat` contains ten columns:
 ## Notes
 
 The generated `.dat` files are not tracked by Git. They should be treated as generated data and archived separately if needed for release.
+
+## Reweighting grid refinement
+
+The multihistogram runner uses a refinement factor to define the number of output temperature points.
+
+By default:
+
+POINTS = (N_temperatures - 1) * 50 + 1
+
+where `N_temperatures` is the number of temperatures in `temperatures_L.txt`.
+
+This means that each interval between consecutive input temperatures is divided into 50 smaller intervals. For example, if the input spacing is 0.0005, the output reweighting spacing is approximately 0.0005 / 50 = 0.00001.
+
+The refinement factor can be changed by passing a fourth argument:
+
+bash scripts/multihistogram/run_multihistogram_all.sh \
+  src/multihistogram \
+  data/temperatures \
+  results/multihistogram \
+  100
+
+The output files are named deterministically as:
+
+results_L.dat
+output2_L.dat
+
+where `L` is the lattice size.
