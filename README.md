@@ -25,17 +25,13 @@ docs/
   multihistogram_workflow.md
   software_requirements.md
 
-data/
-  temperatures/        generated reweighting temperature files
-  eul2d/               prepared multihistogram input data
-
-results/
-  generated simulation, multihistogram, and figure outputs
+data/                  generated workflow data directories
+results/               generated analysis outputs
 
 requirements.txt       Python dependencies
 ```
 
-Generated large data directories are not part of the source-code repository.
+The `data/` and `results/` directories are populated by the workflow and are not part of the source-code repository, except for lightweight data products explicitly included for figure reproduction.
 
 ## Workflow overview
 
