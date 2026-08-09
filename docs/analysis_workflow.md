@@ -389,3 +389,126 @@ The square-lattice output files corresponding to the publication panels are:
 
 The corresponding triangular-lattice figures are generated with separate
 triangular output names.
+
+## Distribution-shape and effective-resolution analysis
+
+The final analysis compares the distributions of magnetization and the
+symmetrized Euler characteristic at a selected temperature close to the
+critical region.
+
+The analysis script is:
+
+    scripts/analysis/compute_distribution_resolution.py
+
+It reads the raw simulation files:
+
+    mefile.txt
+    epfile.txt
+    enfile.txt
+
+for each lattice size at a user-selected temperature.
+
+The symmetrized Euler characteristic is defined as:
+
+    EC_sym = (EN - EP) / 2
+
+For the distribution-shape comparison, magnetization and EC_sym are
+standardized independently using their sample mean and sample standard
+deviation. A two-sample Kolmogorov-Smirnov statistic is then computed between
+the standardized distributions.
+
+The resulting table is stored in:
+
+    data/analysis_csv/<lattice_type>/distribution_resolution/
+        distribution_shape_tests.csv
+
+It contains, among other quantities:
+
+    L
+    n_samples
+    M_mean
+    M_std
+    M_skewness
+    M_excess_kurtosis
+    EC_mean
+    EC_std
+    EC_skewness
+    EC_excess_kurtosis
+    KS_statistic_standardized
+    KS_pvalue_standardized
+
+The same raw observables are also used to quantify their effective discrete
+resolution.
+
+For an empirical distribution with probabilities p_i, the Shannon entropy is:
+
+    H = -sum_i p_i log(p_i)
+
+and the effective number of observed values is:
+
+    K_eff = exp(H)
+
+The corresponding table is stored in:
+
+    data/analysis_csv/<lattice_type>/distribution_resolution/
+        entropy_effective_resolution.csv
+
+It contains the number of unique observed values, Shannon entropy, effective
+number of values, and EC-to-magnetization resolution ratios.
+
+For the square-lattice publication figures, the analysis is evaluated at:
+
+    T = 2.26900
+
+For example:
+
+    python scripts/analysis/compute_distribution_resolution.py \
+      --results-dir <square_simulation_results_directory> \
+      --lattice-type square \
+      --temperature 2.26900
+
+The temperature is supplied explicitly through the command line and is not
+hard-coded into the analysis.
+
+### Distribution-resolution figures
+
+The plotting script is:
+
+    scripts/plotting/plot_distribution_resolution.py
+
+It reads only the processed CSV files and generates:
+
+    results/figures/KS_distance_standardized_vs_L.png
+    results/figures/resolution_ratios_EC_over_M_vs_L.png
+
+The first figure shows the Kolmogorov-Smirnov distance between the standardized
+magnetization and EC_sym distributions as a function of lattice size.
+
+The second figure compares:
+
+    K_EC / K_M
+
+and:
+
+    K_eff,EC / K_eff,M
+
+as functions of lattice size. A horizontal reference line at one indicates
+equal effective resolution for the two observables.
+
+The complete workflow for this analysis is:
+
+    raw simulation outputs
+            |
+            v
+    scripts/analysis/compute_distribution_resolution.py
+            |
+            v
+    distribution_shape_tests.csv
+    entropy_effective_resolution.csv
+            |
+            v
+    scripts/plotting/plot_distribution_resolution.py
+            |
+            v
+    KS_distance_standardized_vs_L.png
+    resolution_ratios_EC_over_M_vs_L.png
