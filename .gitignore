@@ -41,3 +41,5 @@ data/temperatures/
 
 # Generated simulation outputs
 results/simulations/
+
+.venv/
