@@ -241,3 +241,76 @@ The corresponding analysis pipeline is:
             |
             v
     data/table_csv/<lattice_type>/aic_lmin_*.csv
+
+## Finite-size-scaling figure
+
+The finite-size-scaling figure compares pseudocritical temperatures obtained
+from the Euler-characteristic and magnetization observables.
+
+The plotting script is:
+
+    scripts/plotting/plot_fss_tc_two_observables.py
+
+It reads the previously generated pseudocritical-temperature summaries:
+
+    data/analysis_csv/<lattice_type>/pseudocritical_ec.csv
+    data/analysis_csv/<lattice_type>/pseudocritical_m.csv
+
+The fitted finite-size-scaling model is:
+
+    Tc(L) = Tc_inf + A * L^(-1/nu)
+
+The EC- and magnetization-based pseudocritical temperatures are fitted
+independently.
+
+The default lower lattice-size limits used in the fits are:
+
+    square:
+        EC: L >= 96
+        M:  L >= 96
+
+    triangular:
+        EC: L >= 96
+        M:  L >= 64
+
+These limits are analysis choices and can be overridden explicitly with:
+
+    --lmin-ec
+    --lmin-m
+
+For example:
+
+    python scripts/plotting/plot_fss_tc_two_observables.py \
+      --lattice-type square \
+      --lmin-ec 128 \
+      --lmin-m 128
+
+By default, the exponent nu is fitted independently for each observable.
+It can optionally be fixed using:
+
+    --fix-nu-ec
+    --fix-nu-m
+
+The horizontal plotting coordinate is:
+
+    x = L^(-1/nu_ref)
+
+with nu_ref = 1 by default, corresponding to x = 1/L.
+
+The default figure commands are:
+
+    python scripts/plotting/plot_fss_tc_two_observables.py \
+      --lattice-type square
+
+and:
+
+    python scripts/plotting/plot_fss_tc_two_observables.py \
+      --lattice-type triangular
+
+The generated figures are written to:
+
+    results/figures/square_fss_Tc_EC_vs_M.png
+    results/figures/triangular_fss_Tc_EC_vs_M.png
+
+The figure uses the existing pseudocritical-temperature CSV files directly;
+no additional figure-level data file is required.
