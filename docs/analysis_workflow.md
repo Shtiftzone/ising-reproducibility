@@ -314,3 +314,78 @@ The generated figures are written to:
 
 The figure uses the existing pseudocritical-temperature CSV files directly;
 no additional figure-level data file is required.
+
+## FSS stability with fixed maximum lattice size
+
+The stability of the finite-size-scaling estimates is examined by varying the
+minimum lattice size included in the fit while keeping the maximum lattice size
+fixed.
+
+The analysis script is:
+
+    scripts/analysis/compute_fss_fixed_lmax.py
+
+It reads the previously generated pseudocritical-temperature summaries:
+
+    data/analysis_csv/<lattice_type>/pseudocritical_ec.csv
+    data/analysis_csv/<lattice_type>/pseudocritical_m.csv
+
+For each observable, the model
+
+    Tc(L) = Tc_inf + A * L^(-1/nu)
+
+is fitted repeatedly while scanning L_min.
+
+Two fixed upper limits are considered:
+
+    L_max = 3072
+    L_max = 2048
+
+corresponding to the largest and second-largest lattice sizes in the dataset.
+
+Fits are performed only when at least six lattice sizes remain in the selected
+range. AICc and additional fit diagnostics are also recorded, although the
+stability figures themselves use the fitted values of Tc_inf and nu together
+with their uncertainties.
+
+The resulting tables are stored in:
+
+    data/table_csv/<lattice_type>/fixed_lmax/
+
+with files:
+
+    lmin_ec_lmax_max.csv
+    lmin_m_lmax_max.csv
+    lmin_ec_lmax_second.csv
+    lmin_m_lmax_second.csv
+
+The plotting script is:
+
+    scripts/plotting/plot_fss_lmin_stability.py
+
+It generates plots of fitted Tc_inf and nu as functions of L_min for both
+Euler-characteristic and magnetization observables.
+
+For the square lattice, the theoretical reference values are:
+
+    nu = 1
+    Tc = 2 / ln(1 + sqrt(2))
+
+For the triangular lattice, the theoretical reference values are:
+
+    nu = 1
+    Tc = 4 / ln(3)
+
+The plotting script processes square and triangular datasets independently. If
+one lattice dataset is absent, that lattice is skipped without stopping the
+generation of figures for the other lattice.
+
+The square-lattice output files corresponding to the publication panels are:
+
+    results/figures/Tc_vs_Lmin_PBC_Lmax_max.png
+    results/figures/Tc_vs_Lmin_PBC_Lmax_second.png
+    results/figures/nu_vs_Lmin_PBC_Lmax_max.png
+    results/figures/nu_vs_Lmin_PBC_Lmax_second.png
+
+The corresponding triangular-lattice figures are generated with separate
+triangular output names.
