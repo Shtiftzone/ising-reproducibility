@@ -35,6 +35,7 @@ docs/
   simulation_workflow.md
   multihistogram_workflow.md
   software_requirements.md
+  docs/analysis_workflow.md
 
 data/                  directories populated by the analysis workflow
 results/               generated analysis outputs
@@ -204,6 +205,7 @@ More detailed descriptions of each stage are available in:
 * `docs/software_requirements.md`
 * `docs/simulation_workflow.md`
 * `docs/multihistogram_workflow.md`
+* `docs/analysis_workflow.md`
 
 ## Data availability
 
