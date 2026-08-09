@@ -142,3 +142,102 @@ The current analysis pipeline is:
 
 Additional publication figures and their corresponding analysis steps will be
 documented here as they are added to the reproducibility workflow.
+
+## Pseudocritical temperatures and finite-size scaling
+
+Pseudocritical temperatures are extracted from the multihistogram bootstrap
+outputs stored as:
+
+    results_L.dat
+
+The extraction script is:
+
+    scripts/analysis/compute_pseudocritical_temperatures.py
+
+For each lattice size and bootstrap realization, the pseudocritical temperature
+is identified from the maximum of the selected susceptibility-like observable.
+
+Two variants are analyzed:
+
+- `ec`: Euler-characteristic-based observable
+- `m`: magnetization-based observable
+
+The extracted bootstrap-level pseudocritical temperatures are written to:
+
+    data/analysis_csv/<lattice_type>/pseudocritical_bootstrap_ec.csv
+    data/analysis_csv/<lattice_type>/pseudocritical_bootstrap_m.csv
+
+The corresponding size-dependent summaries are written to:
+
+    data/analysis_csv/<lattice_type>/pseudocritical_ec.csv
+    data/analysis_csv/<lattice_type>/pseudocritical_m.csv
+
+The summary files contain:
+
+    lattice_type
+    variant
+    L
+    Tc
+    Tc_std
+    N_boot
+
+where `Tc` is the mean pseudocritical temperature across bootstrap realizations
+and `Tc_std` is its sample standard deviation.
+
+### Finite-size-scaling fits
+
+Finite-size scaling is performed using:
+
+    scripts/analysis/compute_fss_lmin_aic.py
+
+The script reads a pseudocritical-temperature summary CSV and fits
+
+    Tc(L) = Tc_inf + A * L^(-1/nu)
+
+for a sequence of minimum lattice sizes `L_min`.
+
+For each fit, the output includes:
+
+    L_min
+    n_points
+    Tc_inf
+    dTc_inf
+    A
+    dA
+    nu
+    dnu
+    chi2
+    dof
+    chi2_red
+    p_value
+    AIC
+    dnu_sigma
+    dTc_inf_sigma
+    delta_AIC
+
+A finite-sample AIC correction (AICc) is used by default.
+
+The resulting tables are stored separately for square and triangular lattices,
+for example:
+
+    data/table_csv/square/aic_lmin_ec.csv
+    data/table_csv/square/aic_lmin_m.csv
+
+    data/table_csv/triangular/aic_lmin_ec.csv
+    data/table_csv/triangular/aic_lmin_m.csv
+
+The corresponding analysis pipeline is:
+
+    multihistogram results_L.dat
+            |
+            v
+    scripts/analysis/compute_pseudocritical_temperatures.py
+            |
+            v
+    data/analysis_csv/<lattice_type>/pseudocritical_*.csv
+            |
+            v
+    scripts/analysis/compute_fss_lmin_aic.py
+            |
+            v
+    data/table_csv/<lattice_type>/aic_lmin_*.csv
