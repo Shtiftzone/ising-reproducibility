@@ -10,86 +10,127 @@
 //    write_faces       - Number of k-faces for positive and negative spins
 //
 //  Copyright (C) 2020 Tak-Shing Chan
+//  Modifications Copyright (C) 2026 Mateusz Maslowski
 //
 
 // Configuration-specific settings
 #define NSPIN (L * L)
 #define Z 4
-#ifndef CELL
+
+#ifndef SPIN_AS_VERTEX
 #define L2 (L * 2)
 #endif
+
 
 int pbceuler(int *conf)
 {
     // Euler number with periodic boundary conditions
     int euler = 0;
+
     static int lut[] = {
-#ifndef CELL
-        0, 1, 1, 0, 1, 0, -2, -1, 1, -2, 0, -1, 0, -1, -1, 0
+#ifndef SPIN_AS_VERTEX
+        // Spin represented as a 2-D cell
+        0, 1, 1, 0,
+        1, 0, -2, -1,
+        1, -2, 0, -1,
+        0, -1, -1, 0
 #else
-        0, 1, 1, 0, 1, 0, 2, -1, 1, 2, 0, -1, 0, -1, -1, 0
+        // Spin represented as a vertex
+        0, 1, 1, 0,
+        1, 0, 2, -1,
+        1, 2, 0, -1,
+        0, -1, -1, 0
 #endif
     };
+
     for (int i = 0; i < L; i++) {
         int ip1 = (i + 1) % L;
+
         for (int j = 0; j < L; j++) {
             int jp1 = (j + 1) % L;
-            euler += lut[conf[i + j * L] * 1 +
-                         conf[ip1 + j * L] * 2 +
-                         conf[i + jp1 * L] * 4 +
-                         conf[ip1 + jp1 * L] * 8];
+
+            euler += lut[
+                conf[i + j * L] * 1 +
+                conf[ip1 + j * L] * 2 +
+                conf[i + jp1 * L] * 4 +
+                conf[ip1 + jp1 * L] * 8
+            ];
         }
     }
+
     return euler / 4;
 }
+
 
 void write_me(int *conf, FILE *stream)
 {
     // Magnetization and energy with periodic boundary conditions
     int M = 0;
     int E = 0;
+
     for (int i = 0; i < L; i++) {
         int ip1 = (i + 1) % L;
+
         for (int j = 0; j < L; j++) {
             int jp1 = (j + 1) % L;
+
             M += conf[i + j * L];
-            E -= conf[i + j * L] * (conf[ip1 + j * L] +
-                                    conf[i + jp1 * L]);
+
+            E -= conf[i + j * L] *
+                 (
+                     conf[ip1 + j * L] +
+                     conf[i + jp1 * L]
+                 );
         }
     }
+
     fprintf(stream, "%d,%d\n", M, E);
     fflush(stream);
 }
 
+
 void write_betti(int *conf, FILE *stream)
 {
-#ifndef CELL
+#ifndef SPIN_AS_VERTEX
     // Betti numbers with periodic boundary conditions
+    // for the spin-as-cell representation
+
     int b0 = 0;
     int b2 = 1;
 
     // Depth-first search for connected components
     static int data[NSPIN];
     static int stack[NSPIN];
+
     memcpy(data, conf, NSPIN * sizeof *conf);
+
     for (int i = 0; i < NSPIN; i++) {
         switch (data[i]) {
+
         case 0:
-            b2 = 0;             // Not a torus
+            b2 = 0;  // Not a torus
             break;
+
         case 1:
-            b0++;               // Found connected component
-            int sp = 0;         // Initialize stack
-            stack[sp++] = i;    // Add spin to stack
-            data[i] = 2;        // Mark as visited
-            while (sp) {        // Recurse into neighbors
+            b0++;  // Found connected component
+
+            int sp = 0;
+            stack[sp++] = i;
+            data[i] = 2;
+
+            while (sp) {
                 int spin = stack[--sp];
+
                 int x = spin % L;
                 int y = spin / L;
+
                 for (int dx = -1; dx < 2; dx++) {
                     for (int dy = -1; dy < 2; dy++) {
-                        int nn = ((x + dx + L) % L) +
-                                 ((y + dy + L) % L) * L;
+
+                        int nn =
+                            ((x + dx + L) % L) +
+                            ((y + dy + L) % L) * L;
+
                         if (data[nn] == 1) {
                             stack[sp++] = nn;
                             data[nn] = 2;
@@ -97,12 +138,23 @@ void write_betti(int *conf, FILE *stream)
                     }
                 }
             }
+
+            break;
         }
     }
-    fprintf(stream, "%d,%d,%d\n", b0, b0 + b2 - pbceuler(conf), b2);
+
+    fprintf(
+        stream,
+        "%d,%d,%d\n",
+        b0,
+        b0 + b2 - pbceuler(conf),
+        b2
+    );
+
     fflush(stream);
 #endif
 }
+
 
 void write_euler(int *conf, FILE *stream)
 {
@@ -111,6 +163,7 @@ void write_euler(int *conf, FILE *stream)
     fflush(stream);
 }
 
+
 void write_faces(int *conf, FILE *stream)
 {
     // Number of k-faces with periodic boundary conditions
@@ -118,19 +171,32 @@ void write_faces(int *conf, FILE *stream)
     int F1 = 0;
     int F2 = 0;
 
-#ifndef CELL
+#ifndef SPIN_AS_VERTEX
+
+    // ---------------------------------------------------------
+    // Spin-as-cell representation
+    // ---------------------------------------------------------
+
     // Create CubeMap with periodic boundary conditions
     static unsigned char cubemap[NSPIN * 4];
+
     memset(cubemap, 0, NSPIN * 4);
+
     for (int i = 0; i < L; i++) {
         int i2 = i * 2;
+
         for (int j = 0; j < L; j++) {
             int j2 = j * 2;
+
             if (conf[i + j * L]) {
+
                 for (int di = 0; di < 3; di++) {
                     for (int dj = 0; dj < 3; dj++) {
-                        cubemap[((i2 + di) % L2) +
-                                ((j2 + dj) % L2) * L2] = 1;
+
+                        cubemap[
+                            ((i2 + di) % L2) +
+                            ((j2 + dj) % L2) * L2
+                        ] = 1;
                     }
                 }
             }
@@ -141,31 +207,63 @@ void write_faces(int *conf, FILE *stream)
     for (int i = 0; i < L; i++) {
         int i2 = i * 2;
         int i2p1 = i2 + 1;
+
         for (int j = 0; j < L; j++) {
             int j2 = j * 2;
             int j2p1 = j2 + 1;
-            F0 += cubemap[i2 + j2 * L2];
-            F1 += cubemap[i2 + j2p1 * L2] +
-                  cubemap[i2p1 + j2 * L2];
-            F2 += cubemap[i2p1 + j2p1 * L2];
+
+            F0 += cubemap[
+                i2 + j2 * L2
+            ];
+
+            F1 +=
+                cubemap[
+                    i2 + j2p1 * L2
+                ]
+                +
+                cubemap[
+                    i2p1 + j2 * L2
+                ];
+
+            F2 += cubemap[
+                i2p1 + j2p1 * L2
+            ];
         }
     }
+
 #else
+
+    // ---------------------------------------------------------
+    // Spin-as-vertex representation
+    // ---------------------------------------------------------
+
     for (int i = 0; i < L; i++) {
         int ip1 = (i + 1) % L;
+
         for (int j = 0; j < L; j++) {
             int jp1 = (j + 1) % L;
-            int quad = conf[i + j * L] * 1 +
-                       conf[ip1 + j * L] * 2 +
-                       conf[i + jp1 * L] * 4 +
-                       conf[ip1 + jp1 * L] * 8;
+
+            int quad =
+                conf[i + j * L] * 1 +
+                conf[ip1 + j * L] * 2 +
+                conf[i + jp1 * L] * 4 +
+                conf[ip1 + jp1 * L] * 8;
+
+            // Active spin = vertex
             F0 += ((quad & 1) == 1);
-            F1 += ((quad & 3) == 3) +
-                  ((quad & 5) == 5);
+
+            // Edge exists when both endpoint spins are active
+            F1 +=
+                ((quad & 3) == 3) +
+                ((quad & 5) == 5);
+
+            // Square exists when all four corner spins are active
             F2 += ((quad & 15) == 15);
         }
     }
+
 #endif
+
     fprintf(stream, "%d,%d,%d\n", F0, F1, F2);
     fflush(stream);
 }
