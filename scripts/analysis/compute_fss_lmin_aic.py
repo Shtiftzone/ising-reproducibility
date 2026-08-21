@@ -19,6 +19,7 @@ def lmin_aic_table(
 ) -> pd.DataFrame:
     required = {
         "lattice_type",
+        "representation",
         "variant",
         "L",
         "Tc",
@@ -40,11 +41,17 @@ def lmin_aic_table(
     )
 
     lattice_types = tc_df["lattice_type"].unique()
+    representations = tc_df["representation"].unique()
     variants = tc_df["variant"].unique()
 
     if len(lattice_types) != 1:
         raise ValueError(
             "Input CSV must contain exactly one lattice type."
+        )
+
+    if len(representations) != 1:
+        raise ValueError(
+            "Input CSV must contain exactly one representation."
         )
 
     if len(variants) != 1:
@@ -53,6 +60,7 @@ def lmin_aic_table(
         )
 
     lattice_type = lattice_types[0]
+    representation = representations[0]
     variant = variants[0]
 
     sizes = tc_df["L"].to_numpy()
@@ -146,6 +154,7 @@ def lmin_aic_table(
 
         rec = {
             "lattice_type": lattice_type,
+            "representation": representation,
             "variant": variant,
             "L_min": int(L_min),
             "n_points": int(n),

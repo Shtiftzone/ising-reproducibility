@@ -86,6 +86,7 @@ def jackknife_se_of_mean(values: np.ndarray) -> float:
 def aggregate_observable(
     values: np.ndarray,
     lattice_type: str,
+    representation: str,
     size: int,
     temperature: float,
     observable: str,
@@ -98,13 +99,15 @@ def aggregate_observable(
 
     if values.size == 0:
         raise ValueError(
-            f"No finite values for {lattice_type}, "
+            f"No finite values for "
+            f"{lattice_type}/{representation}, "
             f"L={size}, T={temperature}, "
             f"observable={observable}"
         )
 
     return {
         "lattice_type": lattice_type,
+        "representation": representation,
         "L": size,
         "T": temperature,
         "observable": observable,
@@ -114,9 +117,10 @@ def aggregate_observable(
     }
 
 
-def collect_lattice_observables(
+def collect_observables(
     results_dir: Path,
     lattice_type: str,
+    representation: str,
     size: int,
 ) -> dict[str, pd.DataFrame]:
     """
@@ -169,7 +173,7 @@ def collect_lattice_observables(
 
         if not size_dir.is_dir():
             print(
-                f"Skipping {lattice_type}, "
+                f"Skipping {lattice_type}/{representation}, "
                 f"L={size}, "
                 f"T={temperature:.5f}: "
                 f"missing {size_dir}"
@@ -192,7 +196,7 @@ def collect_lattice_observables(
 
         if missing:
             print(
-                f"Skipping {lattice_type}, "
+                f"Skipping {lattice_type}/{representation}, "
                 f"L={size}, "
                 f"T={temperature:.5f}: "
                 f"missing {', '.join(missing)}"
@@ -232,7 +236,7 @@ def collect_lattice_observables(
         if n_euler == 0:
             raise ValueError(
                 f"No Euler samples for "
-                f"{lattice_type}, "
+                f"{lattice_type}/{representation}, "
                 f"L={size}, "
                 f"T={temperature}"
             )
@@ -254,6 +258,7 @@ def collect_lattice_observables(
             aggregate_observable(
                 np.abs(magnetization),
                 lattice_type,
+                representation,
                 size,
                 temperature,
                 "abs_magnetization",
@@ -264,6 +269,7 @@ def collect_lattice_observables(
             aggregate_observable(
                 energy,
                 lattice_type,
+                representation,
                 size,
                 temperature,
                 "energy",
@@ -274,6 +280,7 @@ def collect_lattice_observables(
             aggregate_observable(
                 np.abs(ec_sym),
                 lattice_type,
+                representation,
                 size,
                 temperature,
                 "abs_ec_sym",
@@ -284,6 +291,7 @@ def collect_lattice_observables(
             aggregate_observable(
                 ec_avg,
                 lattice_type,
+                representation,
                 size,
                 temperature,
                 "ec_avg",
@@ -298,7 +306,7 @@ def collect_lattice_observables(
         if dataframe.empty:
             raise RuntimeError(
                 f"No data produced for "
-                f"{lattice_type}: {key}"
+                f"{lattice_type}/{representation}: {key}"
             )
 
         result[key] = (
@@ -310,23 +318,15 @@ def collect_lattice_observables(
     return result
 
 
-def write_lattice_csvs(
+def write_csvs(
     observables: dict[str, pd.DataFrame],
     output_dir: Path,
-    prefix: str,
 ) -> None:
     filenames = {
-        "mag_abs":
-            f"{prefix}_mag_vs_T.csv",
-
-        "energy":
-            f"{prefix}_energy_vs_T.csv",
-
-        "euler_sym_abs":
-            f"{prefix}_euler_sym_vs_T.csv",
-
-        "ec_avg":
-            f"{prefix}_ec_avg_vs_T.csv",
+        "mag_abs": "mag_vs_T.csv",
+        "energy": "energy_vs_T.csv",
+        "euler_sym_abs": "euler_sym_vs_T.csv",
+        "ec_avg": "ec_avg_vs_T.csv",
     }
 
     for key, dataframe in observables.items():
@@ -345,44 +345,37 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Compute figure-level magnetization, energy, "
-            "and Euler observables from square- and "
-            "triangular-lattice Ising simulation outputs."
+            "and Euler observables from Ising simulation outputs."
         )
     )
 
     parser.add_argument(
-        "--square-results",
+        "--results-dir",
         type=Path,
-        default=Path(
-            "results/square_simulations"
-        ),
+        required=True,
         help=(
-            "Square-lattice simulation "
-            "results directory."
+            "Simulation results directory for one "
+            "lattice/representation combination."
         ),
     )
 
     parser.add_argument(
-        "--triangular-results",
-        type=Path,
-        default=Path(
-            "results/triangular_simulations"
-        ),
-        help=(
-            "Triangular-lattice simulation "
-            "results directory."
-        ),
+        "--lattice-type",
+        choices=["square", "triangular"],
+        required=True,
+    )
+
+    parser.add_argument(
+        "--representation",
+        choices=["cell", "vertex"],
+        required=True,
     )
 
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path(
-            "data/figure_csv"
-        ),
-        help=(
-            "Directory for figure-level CSV files."
-        ),
+        default=Path("data/figure_csv"),
+        help="Base directory for figure-level CSV files.",
     )
 
     parser.add_argument(
@@ -397,44 +390,34 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    args.output_dir.mkdir(
+    output_dir = (
+        args.output_dir
+        / args.lattice_type
+        / args.representation
+    )
+
+    output_dir.mkdir(
         parents=True,
         exist_ok=True,
     )
 
     print(
-        "Computing square-lattice observables..."
+        f"Computing observables for "
+        f"{args.lattice_type}/{args.representation}..."
     )
 
-    square = collect_lattice_observables(
-        args.square_results,
-        lattice_type="square",
-        size=args.size,
-    )
-
-    print()
-    print(
-        "Computing triangular-lattice observables..."
-    )
-
-    triangular = collect_lattice_observables(
-        args.triangular_results,
-        lattice_type="triangular",
+    observables = collect_observables(
+        results_dir=args.results_dir,
+        lattice_type=args.lattice_type,
+        representation=args.representation,
         size=args.size,
     )
 
     print()
 
-    write_lattice_csvs(
-        square,
-        args.output_dir,
-        prefix="square",
-    )
-
-    write_lattice_csvs(
-        triangular,
-        args.output_dir,
-        prefix="triangular",
+    write_csvs(
+        observables,
+        output_dir,
     )
 
     print()

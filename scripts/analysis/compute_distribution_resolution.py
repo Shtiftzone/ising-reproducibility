@@ -108,6 +108,12 @@ def main():
     )
 
     parser.add_argument(
+        "--representation",
+        choices=["cell", "vertex"],
+        required=True,
+    )
+
+    parser.add_argument(
         "--temperature",
         type=float,
         required=True,
@@ -146,6 +152,7 @@ def main():
     output_dir = (
         args.output_dir
         / args.lattice_type
+        / args.representation
         / "distribution_resolution"
     )
 
@@ -199,6 +206,7 @@ def main():
 
         shape_records.append({
             "lattice_type": args.lattice_type,
+            "representation": args.representation,
             "temperature": args.temperature,
             "L": L,
             "n_samples": len(M),
@@ -248,6 +256,7 @@ def main():
 
         entropy_records.append({
             "lattice_type": args.lattice_type,
+            "representation": args.representation,
             "temperature": args.temperature,
             "L": L,
             "n_samples": len(M),
@@ -333,6 +342,8 @@ def main():
         float_format="%.10g",
     )
 
+    print(f"Lattice type: {args.lattice_type}")
+    print(f"Representation: {args.representation}")
     print(f"Wrote {shape_path}")
     print(f"Wrote {entropy_path}")
     print("Done.")

@@ -11,12 +11,24 @@ from scipy.optimize import curve_fit
 
 DEFAULT_LMIN = {
     "square": {
-        "ec": 96,
-        "m": 96,
+        "cell": {
+            "ec": 96,
+            "m": 96,
+        },
+        "vertex": {
+            "ec": 96,
+            "m": 96,
+        },
     },
     "triangular": {
-        "ec": 96,
-        "m": 64,
+        "cell": {
+            "ec": 96,
+            "m": 96,
+        },
+        "vertex": {
+            "ec": 96,
+            "m": 64,
+        },
     },
 }
 
@@ -60,6 +72,7 @@ def fit_tc(df, fix_nu=None):
     Tc_std = Tc_std[order]
 
     if fix_nu is not None:
+
         def model(L, Tc_inf, A):
             return Tc_inf + A * L ** (-1.0 / fix_nu)
 
@@ -124,6 +137,68 @@ def fit_tc(df, fix_nu=None):
     }
 
 
+def get_default_lmin(
+    lattice_type,
+    representation,
+    variant,
+):
+    try:
+        value = DEFAULT_LMIN[
+            lattice_type
+        ][
+            representation
+        ][
+            variant
+        ]
+    except KeyError:
+        return None
+
+    return value
+
+
+def validate_metadata(
+    df,
+    lattice_type,
+    representation,
+    variant,
+):
+    if "lattice_type" in df.columns:
+        values = df["lattice_type"].dropna().unique()
+
+        if (
+            len(values) != 1
+            or values[0] != lattice_type
+        ):
+            raise ValueError(
+                f"Input CSV does not correspond to "
+                f"lattice_type='{lattice_type}'."
+            )
+
+    if "representation" in df.columns:
+        values = df["representation"].dropna().unique()
+
+        if (
+            len(values) != 1
+            or values[0] != representation
+        ):
+            raise ValueError(
+                f"Input CSV does not correspond to "
+                f"representation='{representation}'."
+            )
+
+    if "variant" in df.columns:
+        values = df["variant"].dropna().unique()
+
+        if (
+            len(values) != 1
+            or values[0] != variant
+        ):
+            raise ValueError(
+                f"Input CSV does not correspond to "
+                f"variant='{variant}'."
+            )
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=(
@@ -139,11 +214,18 @@ def main():
     )
 
     parser.add_argument(
+        "--representation",
+        choices=["cell", "vertex"],
+        required=True,
+    )
+
+    parser.add_argument(
         "--input-dir",
         type=Path,
         default=Path("data/analysis_csv"),
         help=(
-            "Base directory containing lattice-specific "
+            "Base directory containing "
+            "<lattice>/<representation>/ "
             "pseudocritical-temperature CSV files."
         ),
     )
@@ -160,7 +242,8 @@ def main():
         default=None,
         help=(
             "Minimum lattice size used for the EC fit. "
-            "If omitted, the lattice-specific default is used."
+            "If omitted, the stored default for the selected "
+            "lattice/representation is used."
         ),
     )
 
@@ -170,7 +253,8 @@ def main():
         default=None,
         help=(
             "Minimum lattice size used for the magnetization fit. "
-            "If omitted, the lattice-specific default is used."
+            "If omitted, the stored default for the selected "
+            "lattice/representation is used."
         ),
     )
 
@@ -214,31 +298,59 @@ def main():
     args = parser.parse_args()
 
     lattice_type = args.lattice_type
+    representation = args.representation
+
+    default_lmin_ec = get_default_lmin(
+        lattice_type,
+        representation,
+        "ec",
+    )
+
+    default_lmin_m = get_default_lmin(
+        lattice_type,
+        representation,
+        "m",
+    )
 
     lmin_ec = (
         args.lmin_ec
         if args.lmin_ec is not None
-        else DEFAULT_LMIN[lattice_type]["ec"]
+        else default_lmin_ec
     )
 
     lmin_m = (
         args.lmin_m
         if args.lmin_m is not None
-        else DEFAULT_LMIN[lattice_type]["m"]
+        else default_lmin_m
     )
 
-    lattice_input_dir = (
+    if lmin_ec is None:
+        raise ValueError(
+            "No default EC L_min is defined for "
+            f"{lattice_type}/{representation}. "
+            "Specify --lmin-ec explicitly."
+        )
+
+    if lmin_m is None:
+        raise ValueError(
+            "No default magnetization L_min is defined for "
+            f"{lattice_type}/{representation}. "
+            "Specify --lmin-m explicitly."
+        )
+
+    variant_input_dir = (
         args.input_dir
         / lattice_type
+        / representation
     )
 
     ec_path = (
-        lattice_input_dir
+        variant_input_dir
         / "pseudocritical_ec.csv"
     )
 
     m_path = (
-        lattice_input_dir
+        variant_input_dir
         / "pseudocritical_m.csv"
     )
 
@@ -255,6 +367,20 @@ def main():
     df_ec = pd.read_csv(ec_path)
     df_m = pd.read_csv(m_path)
 
+    validate_metadata(
+        df_ec,
+        lattice_type,
+        representation,
+        "ec",
+    )
+
+    validate_metadata(
+        df_m,
+        lattice_type,
+        representation,
+        "m",
+    )
+
     df_ec_fit = (
         df_ec[df_ec["L"] >= lmin_ec]
         .copy()
@@ -267,9 +393,21 @@ def main():
         .sort_values("L")
     )
 
-    print(f"Lattice type: {lattice_type}")
-    print(f"EC fit range: L >= {lmin_ec}")
-    print(f"M fit range:  L >= {lmin_m}")
+    print(
+        f"Lattice type: {lattice_type}"
+    )
+
+    print(
+        f"Representation: {representation}"
+    )
+
+    print(
+        f"EC fit range: L >= {lmin_ec}"
+    )
+
+    print(
+        f"M fit range:  L >= {lmin_m}"
+    )
 
     fit_ec = fit_tc(
         df_ec_fit,
@@ -305,13 +443,25 @@ def main():
 
     x_grid = x_of_L(L_grid)
 
-    x_ec = x_of_L(fit_ec["L"])
-    x_m = x_of_L(fit_m["L"])
+    x_ec = x_of_L(
+        fit_ec["L"]
+    )
 
-    Tc_fit_ec = fit_ec["fitfun"](L_grid)
-    Tc_fit_m = fit_m["fitfun"](L_grid)
+    x_m = x_of_L(
+        fit_m["L"]
+    )
 
-    plt.figure(figsize=(8.2, 6.0))
+    Tc_fit_ec = fit_ec["fitfun"](
+        L_grid
+    )
+
+    Tc_fit_m = fit_m["fitfun"](
+        L_grid
+    )
+
+    plt.figure(
+        figsize=(8.2, 6.0)
+    )
 
     color_ec = "#0072B2"
     color_m = "#D55E00"
@@ -353,32 +503,52 @@ def main():
     )
 
     if args.nu_ref_x == 1.0:
-        plt.xlabel(r"$1/L$")
+        plt.xlabel(
+            r"$1/L$"
+        )
     else:
         plt.xlabel(
             rf"$L^{{-1/{args.nu_ref_x:g}}}$"
         )
 
-    plt.ylabel(r"$T_c(L)$")
+    plt.ylabel(
+        r"$T_c(L)$"
+    )
 
-    if lattice_type == "square":
-        plt.title(
-            r"2D Ising: $T_c(L)$ finite-size scaling"
-        )
-    else:
-        plt.title(
-            r"Triangular Ising: $T_c(L)$ finite-size scaling"
-        )
+    lattice_label = (
+        "Square"
+        if lattice_type == "square"
+        else "Triangular"
+    )
+
+    representation_label = (
+        "spin as cell"
+        if representation == "cell"
+        else "spin as vertex"
+    )
+
+    plt.title(
+        rf"{lattice_label} Ising, {representation_label}: "
+        rf"$T_c(L)$ finite-size scaling"
+    )
 
     plt.grid(True)
 
     if not args.no_invert_x:
         plt.gca().invert_xaxis()
 
-    plt.gca().spines["top"].set_visible(False)
-    plt.gca().spines["right"].set_visible(False)
+    plt.gca().spines[
+        "top"
+    ].set_visible(False)
 
-    plt.legend(fontsize=9)
+    plt.gca().spines[
+        "right"
+    ].set_visible(False)
+
+    plt.legend(
+        fontsize=9
+    )
+
     plt.tight_layout()
 
     args.output_dir.mkdir(
@@ -388,7 +558,9 @@ def main():
 
     if args.filename is None:
         filename = (
-            f"{lattice_type}_fss_Tc_EC_vs_M.png"
+            f"{lattice_type}_"
+            f"{representation}_"
+            f"fss_Tc_EC_vs_M.png"
         )
     else:
         filename = args.filename
@@ -408,16 +580,19 @@ def main():
 
     print()
     print("==== FIT RESULTS (EC) ====")
+
     print(
         f"T_c(inf) = "
         f"{fit_ec['Tc_inf']:.6f} "
         f"+/- {fit_ec['Tc_inf_err']:.6f}"
     )
+
     print(
         f"A        = "
         f"{fit_ec['A']:.6f} "
         f"+/- {fit_ec['A_err']:.6f}"
     )
+
     print(
         f"nu       = "
         f"{fit_ec['nu']:.6f} "
@@ -426,16 +601,19 @@ def main():
 
     print()
     print("==== FIT RESULTS (M) ====")
+
     print(
         f"T_c(inf) = "
         f"{fit_m['Tc_inf']:.6f} "
         f"+/- {fit_m['Tc_inf_err']:.6f}"
     )
+
     print(
         f"A        = "
         f"{fit_m['A']:.6f} "
         f"+/- {fit_m['A_err']:.6f}"
     )
+
     print(
         f"nu       = "
         f"{fit_m['nu']:.6f} "
@@ -443,7 +621,9 @@ def main():
     )
 
     print()
-    print(f"Saved plot as: {output_path}")
+    print(
+        f"Saved plot as: {output_path}"
+    )
 
 
 if __name__ == "__main__":

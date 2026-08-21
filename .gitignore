@@ -5,10 +5,8 @@ __pycache__/
 .ipynb_checkpoints/
 
 data/raw/
-results/
 
 # Outputs
-results*/
 MH*/
 simulation_logs*.txt
 *.log
@@ -25,7 +23,9 @@ isingtr-*
 
 # Raw data and generated results
 data/raw/
-results/
+results/*
+!results/figures/
+!results/figures/**
 
 # Multihistogram build artifacts / executables
 src/multihistogram/Ac

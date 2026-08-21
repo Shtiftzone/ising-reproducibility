@@ -19,7 +19,15 @@ def fixed_lmax_scan(
     min_points=6,
     use_aicc=True,
 ):
-    required = {"lattice_type", "variant", "L", "Tc", "Tc_std"}
+    required = {
+        "lattice_type",
+        "representation",
+        "variant",
+        "L",
+        "Tc",
+        "Tc_std",
+    }
+
     missing = required - set(df.columns)
 
     if missing:
@@ -40,11 +48,17 @@ def fixed_lmax_scan(
         )
 
     lattice_types = df["lattice_type"].unique()
+    representations = df["representation"].unique()
     variants = df["variant"].unique()
 
     if len(lattice_types) != 1:
         raise ValueError(
             "Input CSV must contain exactly one lattice type."
+        )
+
+    if len(representations) != 1:
+        raise ValueError(
+            "Input CSV must contain exactly one representation."
         )
 
     if len(variants) != 1:
@@ -53,6 +67,7 @@ def fixed_lmax_scan(
         )
 
     lattice_type = lattice_types[0]
+    representation = representations[0]
     variant = variants[0]
 
     records = []
@@ -96,7 +111,9 @@ def fixed_lmax_scan(
             )
         except Exception as exc:
             print(
-                f"Fit failed for variant={variant}, "
+                f"Fit failed for "
+                f"{lattice_type}/{representation}, "
+                f"variant={variant}, "
                 f"L_min={L_min}, L_max={L_max}: {exc}"
             )
             continue
@@ -135,6 +152,7 @@ def fixed_lmax_scan(
 
         rec = {
             "lattice_type": lattice_type,
+            "representation": representation,
             "variant": variant,
             "L_min": int(L_min),
             "L_max": int(L_max),
@@ -208,6 +226,12 @@ def main():
     )
 
     parser.add_argument(
+        "--representation",
+        choices=["cell", "vertex"],
+        required=True,
+    )
+
+    parser.add_argument(
         "--input-dir",
         type=Path,
         default=Path("data/analysis_csv"),
@@ -236,11 +260,13 @@ def main():
     input_dir = (
         args.input_dir
         / args.lattice_type
+        / args.representation
     )
 
     output_dir = (
         args.output_dir
         / args.lattice_type
+        / args.representation
         / "fixed_lmax"
     )
 
@@ -279,6 +305,7 @@ def main():
     L_second = common_sizes[-2]
 
     print(f"Lattice type: {args.lattice_type}")
+    print(f"Representation: {args.representation}")
     print(f"L_max: {L_max}")
     print(f"Second L_max: {L_second}")
     print(

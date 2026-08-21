@@ -8,58 +8,55 @@ import pandas as pd
 
 
 PLOTS = {
-    "square_mag_vs_T.csv": {
-        "output": "2d_mag_vs_T_abs.png",
-        "title": "Magnetization vs Temperature (2D)",
+    "mag_vs_T.csv": {
+        "output": "mag_vs_T_abs.png",
+        "title": "Magnetization vs Temperature",
         "ylabel": r"$\langle |M| \rangle$",
     },
-    "square_energy_vs_T.csv": {
-        "output": "2d_energy_vs_T.png",
-        "title": "Energy vs Temperature (2D)",
+    "energy_vs_T.csv": {
+        "output": "energy_vs_T.png",
+        "title": "Energy vs Temperature",
         "ylabel": r"$\langle E \rangle$",
     },
-    "square_euler_sym_vs_T.csv": {
-        "output": "2d_euler_sym_vs_T_abs.png",
-        "title": r"Symmetrized Euler characteristic $EC_{\mathrm{sym}}$ vs Temperature (2D)",
+    "euler_sym_vs_T.csv": {
+        "output": "euler_sym_vs_T_abs.png",
+        "title": (
+            r"Symmetrized Euler characteristic "
+            r"$EC_{\mathrm{sym}}$ vs Temperature"
+        ),
         "ylabel": r"$\langle |EC_{\mathrm{sym}}| \rangle$",
     },
-    "square_ec_avg_vs_T.csv": {
-        "output": "2d_ec_avg_vs_T.png",
-        "title": r"Average Euler characteristic $EC_{\mathrm{avg}}$ vs Temperature (2D)",
-        "ylabel": r"$\langle EC_{\mathrm{avg}} \rangle$",
-    },
-    "triangular_mag_vs_T.csv": {
-        "output": "tri_mag_vs_T_abs.png",
-        "title": "Magnetization vs Temperature (Tri.)",
-        "ylabel": r"$\langle |M| \rangle$",
-    },
-    "triangular_energy_vs_T.csv": {
-        "output": "tri_energy_vs_T.png",
-        "title": "Energy vs Temperature (Tri.)",
-        "ylabel": r"$\langle E \rangle$",
-    },
-    "triangular_euler_sym_vs_T.csv": {
-        "output": "tri_euler_sym_vs_T_abs.png",
-        "title": r"Symmetrized Euler characteristic $EC_{\mathrm{sym}}$ vs Temperature (Tri.)",
-        "ylabel": r"$\langle |EC_{\mathrm{sym}}| \rangle$",
-    },
-    "triangular_ec_avg_vs_T.csv": {
-        "output": "tri_ec_avg_vs_T.png",
-        "title": r"Average Euler characteristic $EC_{\mathrm{avg}}$ vs Temperature (Tri.)",
+    "ec_avg_vs_T.csv": {
+        "output": "ec_avg_vs_T.png",
+        "title": (
+            r"Average Euler characteristic "
+            r"$EC_{\mathrm{avg}}$ vs Temperature"
+        ),
         "ylabel": r"$\langle EC_{\mathrm{avg}} \rangle$",
     },
 }
 
 
-def make_plot(csv_path: Path, output_path: Path, title: str, ylabel: str) -> None:
+def make_plot(
+    csv_path: Path,
+    output_path: Path,
+    title: str,
+    ylabel: str,
+) -> None:
     df = pd.read_csv(csv_path)
 
-    required = {"T", "mean", "jackknife_se"}
+    required = {
+        "T",
+        "mean",
+        "jackknife_se",
+    }
+
     missing = required - set(df.columns)
 
     if missing:
         raise ValueError(
-            f"{csv_path} is missing required columns: {sorted(missing)}"
+            f"{csv_path} is missing required columns: "
+            f"{sorted(missing)}"
         )
 
     df = df.sort_values("T")
@@ -88,6 +85,7 @@ def make_plot(csv_path: Path, output_path: Path, title: str, ylabel: str) -> Non
     )
 
     plt.tight_layout()
+
     plt.savefig(
         output_path,
         dpi=200,
@@ -108,10 +106,22 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "--lattice-type",
+        choices=["square", "triangular"],
+        required=True,
+    )
+
+    parser.add_argument(
+        "--representation",
+        choices=["cell", "vertex"],
+        required=True,
+    )
+
+    parser.add_argument(
         "--input-dir",
         type=Path,
         default=Path("data/figure_csv"),
-        help="Directory containing figure-level CSV files.",
+        help="Base directory containing figure-level CSV files.",
     )
 
     parser.add_argument(
@@ -123,9 +133,16 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if not args.input_dir.is_dir():
+    variant_input_dir = (
+        args.input_dir
+        / args.lattice_type
+        / args.representation
+    )
+
+    if not variant_input_dir.is_dir():
         raise FileNotFoundError(
-            f"Input directory does not exist: {args.input_dir}"
+            f"Input directory does not exist: "
+            f"{variant_input_dir}"
         )
 
     args.output_dir.mkdir(
@@ -133,22 +150,51 @@ def main() -> None:
         exist_ok=True,
     )
 
+    lattice_label = (
+        "Square"
+        if args.lattice_type == "square"
+        else "Triangular"
+    )
+
+    representation_label = (
+        "spin as cell"
+        if args.representation == "cell"
+        else "spin as vertex"
+    )
+
+    prefix = (
+        f"{args.lattice_type}_"
+        f"{args.representation}"
+    )
+
     for csv_name, config in PLOTS.items():
-        csv_path = args.input_dir / csv_name
+        csv_path = (
+            variant_input_dir
+            / csv_name
+        )
 
         if not csv_path.is_file():
-            print(f"Skipping missing file: {csv_path}")
+            print(
+                f"Skipping missing file: "
+                f"{csv_path}"
+            )
             continue
 
         output_path = (
             args.output_dir
-            / config["output"]
+            / f"{prefix}_{config['output']}"
+        )
+
+        title = (
+            f"{lattice_label} Ising, "
+            f"{representation_label}: "
+            f"{config['title']}"
         )
 
         make_plot(
             csv_path,
             output_path,
-            config["title"],
+            title,
             config["ylabel"],
         )
 

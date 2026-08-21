@@ -22,6 +22,12 @@ def main():
     )
 
     parser.add_argument(
+        "--representation",
+        choices=["cell", "vertex"],
+        required=True,
+    )
+
+    parser.add_argument(
         "--input-dir",
         type=Path,
         default=Path("data/analysis_csv"),
@@ -38,6 +44,7 @@ def main():
     input_dir = (
         args.input_dir
         / args.lattice_type
+        / args.representation
         / "distribution_resolution"
     )
 
@@ -73,6 +80,11 @@ def main():
         df_shape["temperature"].iloc[0]
     )
 
+    prefix = (
+        f"{args.lattice_type}_"
+        f"{args.representation}"
+    )
+
     plt.figure(figsize=(7, 5))
 
     plt.plot(
@@ -97,7 +109,7 @@ def main():
 
     ks_output = (
         args.output_dir
-        / "KS_distance_standardized_vs_L.png"
+        / f"{prefix}_KS_distance_standardized_vs_L.png"
     )
 
     plt.savefig(
@@ -158,7 +170,7 @@ def main():
 
     resolution_output = (
         args.output_dir
-        / "resolution_ratios_EC_over_M_vs_L.png"
+        / f"{prefix}_resolution_ratios_EC_over_M_vs_L.png"
     )
 
     plt.savefig(

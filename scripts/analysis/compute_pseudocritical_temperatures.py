@@ -22,12 +22,25 @@ def get_column_index(variant: str) -> int:
     raise ValueError("variant must be 'ec' or 'm'")
 
 
-def extract_pseudocritical_temperatures(
+def extract_pseudocritical_observables(
     sizes,
     input_dir: Path,
     lattice_type: str,
+    representation: str,
     variant: str,
 ):
+    """
+    Extract bootstrap pseudocritical temperatures and peak susceptibilities.
+
+    For each lattice size L and bootstrap sample b,
+
+        Tc_b(L)    = argmax_T chi_b(T, L)
+        chi_c_b(L) = max_T    chi_b(T, L)
+
+    The reported uncertainties are the bootstrap standard deviations
+    of Tc_b(L) and chi_c_b(L).
+    """
+
     col_idx = get_column_index(variant)
 
     bootstrap_records = []
@@ -48,7 +61,8 @@ def extract_pseudocritical_temperatures(
         if data.shape[1] <= col_idx:
             raise ValueError(
                 f"{file_path} has {data.shape[1]} columns, "
-                f"but variant '{variant}' requires NumPy column index {col_idx}"
+                f"but variant '{variant}' requires NumPy "
+                f"column index {col_idx}"
             )
 
         df = pd.DataFrame({
@@ -58,6 +72,7 @@ def extract_pseudocritical_temperatures(
         })
 
         tc_values = []
+        chi_c_values = []
 
         for bootstrap_id, df_b in df.groupby("bootstrap"):
             chi = df_b["chi"].to_numpy()
@@ -67,19 +82,25 @@ def extract_pseudocritical_temperatures(
                 continue
 
             idx_max = np.argmax(chi)
+
             tc = float(temperatures[idx_max])
+            chi_c = float(chi[idx_max])
 
             bootstrap_records.append({
                 "lattice_type": lattice_type,
+                "representation": representation,
                 "variant": variant,
                 "L": L,
                 "bootstrap": int(bootstrap_id),
                 "Tc": tc,
+                "chi_c": chi_c,
             })
 
             tc_values.append(tc)
+            chi_c_values.append(chi_c)
 
         tc_values = np.asarray(tc_values, dtype=float)
+        chi_c_values = np.asarray(chi_c_values, dtype=float)
 
         if tc_values.size == 0:
             print(f"Skipping L={L}: no bootstrap maxima found")
@@ -87,6 +108,7 @@ def extract_pseudocritical_temperatures(
 
         summary_records.append({
             "lattice_type": lattice_type,
+            "representation": representation,
             "variant": variant,
             "L": L,
             "Tc": float(tc_values.mean()),
@@ -95,12 +117,19 @@ def extract_pseudocritical_temperatures(
                 if tc_values.size > 1
                 else np.nan
             ),
+            "chi_c": float(chi_c_values.mean()),
+            "chi_c_std": (
+                float(chi_c_values.std(ddof=1))
+                if chi_c_values.size > 1
+                else np.nan
+            ),
             "N_boot": int(tc_values.size),
         })
 
     if not summary_records:
         raise RuntimeError(
-            f"No pseudocritical temperatures could be extracted from {input_dir}"
+            f"No pseudocritical observables could be extracted "
+            f"from {input_dir}"
         )
 
     bootstrap_df = (
@@ -123,18 +152,20 @@ def run_variant(
     input_dir,
     output_dir,
     lattice_type,
+    representation,
     variant,
 ):
     print()
     print(
-        f"Extracting pseudocritical temperatures: "
-        f"{lattice_type}, {variant}"
+        f"Extracting pseudocritical observables: "
+        f"{lattice_type}, {representation}, {variant}"
     )
 
-    bootstrap_df, summary_df = extract_pseudocritical_temperatures(
+    bootstrap_df, summary_df = extract_pseudocritical_observables(
         sizes=sizes,
         input_dir=input_dir,
         lattice_type=lattice_type,
+        representation=representation,
         variant=variant,
     )
 
@@ -167,8 +198,8 @@ def run_variant(
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "Extract pseudocritical temperatures from "
-            "multihistogram bootstrap results."
+            "Extract pseudocritical temperatures and peak "
+            "susceptibilities from multihistogram bootstrap results."
         )
     )
 
@@ -183,6 +214,14 @@ def main():
         "--lattice-type",
         choices=["square", "triangular"],
         required=True,
+        help="Underlying Ising interaction lattice.",
+    )
+
+    parser.add_argument(
+        "--representation",
+        choices=["cell", "vertex"],
+        required=True,
+        help="Topological representation of each spin.",
     )
 
     parser.add_argument(
@@ -190,8 +229,9 @@ def main():
         type=Path,
         default=Path("data/analysis_csv"),
         help=(
-            "Base output directory. A lattice-specific "
-            "subdirectory is created automatically."
+            "Base output directory. Lattice- and "
+            "representation-specific subdirectories are "
+            "created automatically."
         ),
     )
 
@@ -212,6 +252,7 @@ def main():
     output_dir = (
         args.output_dir
         / args.lattice_type
+        / args.representation
     )
 
     output_dir.mkdir(
@@ -220,6 +261,7 @@ def main():
     )
 
     print(f"Lattice type: {args.lattice_type}")
+    print(f"Representation: {args.representation}")
     print(f"Input directory: {args.input_dir}")
     print(f"Output directory: {output_dir}")
 
@@ -228,6 +270,7 @@ def main():
         args.input_dir,
         output_dir,
         args.lattice_type,
+        args.representation,
         "ec",
     )
 
@@ -236,6 +279,7 @@ def main():
         args.input_dir,
         output_dir,
         args.lattice_type,
+        args.representation,
         "m",
     )
 
