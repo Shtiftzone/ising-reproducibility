@@ -32,11 +32,11 @@ extern void rlxd_reset(int *state);
 #include <limits.h>
 
 #if (INT_MAX>=0x1000000000000)
-typedef int int8_t;
+typedef int luscher_int8_t;
 #elif (LONG_MAX>=0x1000000000000)
-typedef long int8_t;
+typedef long luscher_int8_t;
 #elif (LLONG_MAX>=0x1000000000000)
-typedef long long int8_t;
+typedef long long luscher_int8_t;
 #else
 #error There is no integer data type of size greater than 6
 #endif
@@ -44,7 +44,7 @@ typedef long long int8_t;
 typedef struct
 {
    int pr,ir;
-   int8_t (*state)[4];
+   luscher_int8_t (*state)[4];
 } rlx_state_t;
 
 /* RANLUX_COMMON_C */
