@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+import math
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.ticker import MultipleLocator, ScalarFormatter
 
 
 PLOTS = {
@@ -12,29 +14,151 @@ PLOTS = {
         "output": "mag_vs_T_abs.png",
         "title": "Magnetization vs Temperature",
         "ylabel": r"$\langle |M| \rangle$",
+        "tick_group": "order_parameter",
     },
     "energy_vs_T.csv": {
         "output": "energy_vs_T.png",
         "title": "Energy vs Temperature",
         "ylabel": r"$\langle E \rangle$",
+        "tick_group": "energy_like",
     },
     "euler_sym_vs_T.csv": {
         "output": "euler_sym_vs_T_abs.png",
-        "title": (
-            r"Symmetrized Euler characteristic "
-            r"$EC_{\mathrm{sym}}$ vs Temperature"
-        ),
+        "title": r"$EC_{\mathrm{sym}}$ vs Temperature",
         "ylabel": r"$\langle |EC_{\mathrm{sym}}| \rangle$",
+        "tick_group": "order_parameter",
     },
     "ec_avg_vs_T.csv": {
         "output": "ec_avg_vs_T.png",
-        "title": (
-            r"Average Euler characteristic "
-            r"$EC_{\mathrm{avg}}$ vs Temperature"
-        ),
+        "title": r"$EC_{\mathrm{avg}}$ vs Temperature",
         "ylabel": r"$\langle EC_{\mathrm{avg}} \rangle$",
+        "tick_group": "energy_like",
     },
 }
+
+
+class FixedDecimalScalarFormatter(ScalarFormatter):
+    """
+    Scientific formatter with a fixed number of decimal places.
+    """
+
+    def __init__(self, decimals: int):
+        self.decimals = decimals
+
+        super().__init__(
+            useOffset=False,
+            useMathText=True,
+        )
+
+    def _set_format(self):
+        self.format = f"%1.{self.decimals}f"
+
+        if self._usetex or self._useMathText:
+            self.format = (
+                r"$\mathdefault{%s}$"
+                % self.format
+            )
+
+
+def format_y_axis(
+    ax,
+    values: pd.Series,
+    errors: pd.Series,
+    tick_group: str,
+) -> None:
+    """
+    Format related observables consistently.
+
+    M and EC_sym:
+        integer labels after scientific scaling,
+        e.g. 0, 1, 2, 3 x 10^5.
+
+    E and EC_avg:
+        one decimal place after scientific scaling,
+        e.g. -1.8, -1.6, -1.4 x 10^7.
+
+    The tick spacing is automatically reduced until
+    at least two major ticks fall inside the data range.
+    """
+
+    lower = (values - errors).min()
+    upper = (values + errors).max()
+
+    max_abs = max(
+        abs(lower),
+        abs(upper),
+    )
+
+    if max_abs == 0:
+        return
+
+    exponent = math.floor(
+        math.log10(max_abs)
+    )
+
+    scale = 10.0 ** exponent
+
+    if tick_group == "order_parameter":
+        decimals = 0
+        step = scale
+
+    elif tick_group == "energy_like":
+        decimals = 1
+        step = 0.2 * scale
+
+    else:
+        raise ValueError(
+            f"Unknown tick group: {tick_group}"
+        )
+
+    # Reduce the tick spacing until at least two major ticks
+    # fall inside the actual data range.
+    while True:
+        first_tick = (
+            math.ceil(lower / step)
+            * step
+        )
+
+        last_tick = (
+            math.floor(upper / step)
+            * step
+        )
+
+        if last_tick >= first_tick:
+            n_ticks = (
+                int(
+                    round(
+                        (last_tick - first_tick)
+                        / step
+                    )
+                )
+                + 1
+            )
+        else:
+            n_ticks = 0
+
+        if n_ticks >= 2:
+            break
+
+        step /= 2.0
+
+    ax.yaxis.set_major_locator(
+        MultipleLocator(step)
+    )
+
+    formatter = FixedDecimalScalarFormatter(
+        decimals=decimals
+    )
+
+    formatter.set_scientific(True)
+
+    formatter.set_powerlimits(
+        (exponent, exponent)
+    )
+
+    ax.yaxis.set_major_formatter(
+        formatter
+    )
 
 
 def make_plot(
@@ -42,6 +166,7 @@ def make_plot(
     output_path: Path,
     title: str,
     ylabel: str,
+    tick_group: str,
 ) -> None:
     df = pd.read_csv(csv_path)
 
@@ -61,9 +186,11 @@ def make_plot(
 
     df = df.sort_values("T")
 
-    plt.figure(figsize=(6, 4))
+    fig, ax = plt.subplots(
+        figsize=(6, 4)
+    )
 
-    plt.errorbar(
+    ax.errorbar(
         df["T"],
         df["mean"],
         yerr=df["jackknife_se"],
@@ -74,27 +201,42 @@ def make_plot(
         alpha=0.9,
     )
 
-    plt.title(title)
-    plt.xlabel(r"Temperature $T$")
-    plt.ylabel(ylabel)
+    ax.set_title(title)
 
-    plt.grid(
+    ax.set_xlabel(
+        r"Temperature $T$"
+    )
+
+    ax.set_ylabel(
+        ylabel
+    )
+
+    format_y_axis(
+        ax,
+        df["mean"],
+        df["jackknife_se"],
+        tick_group,
+    )
+
+    ax.grid(
         True,
         linewidth=0.3,
         alpha=0.5,
     )
 
-    plt.tight_layout()
+    fig.tight_layout()
 
-    plt.savefig(
+    fig.savefig(
         output_path,
         dpi=200,
         bbox_inches="tight",
     )
 
-    plt.close()
+    plt.close(fig)
 
-    print(f"Wrote {output_path}")
+    print(
+        f"Wrote {output_path}"
+    )
 
 
 def main() -> None:
@@ -107,28 +249,43 @@ def main() -> None:
 
     parser.add_argument(
         "--lattice-type",
-        choices=["square", "triangular"],
+        choices=[
+            "square",
+            "triangular",
+        ],
         required=True,
     )
 
     parser.add_argument(
         "--representation",
-        choices=["cell", "vertex"],
+        choices=[
+            "cell",
+            "vertex",
+        ],
         required=True,
     )
 
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path("data/figure_csv"),
-        help="Base directory containing figure-level CSV files.",
+        default=Path(
+            "data/figure_csv"
+        ),
+        help=(
+            "Base directory containing "
+            "figure-level CSV files."
+        ),
     )
 
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("results/figures"),
-        help="Directory for generated figures.",
+        default=Path(
+            "results/figures"
+        ),
+        help=(
+            "Base directory for generated figures."
+        ),
     )
 
     args = parser.parse_args()
@@ -145,26 +302,21 @@ def main() -> None:
             f"{variant_input_dir}"
         )
 
-    args.output_dir.mkdir(
+    variant_output_dir = (
+        args.output_dir
+        / args.lattice_type
+        / args.representation
+    )
+
+    variant_output_dir.mkdir(
         parents=True,
         exist_ok=True,
     )
 
     lattice_label = (
-        "Square"
+        "Sq."
         if args.lattice_type == "square"
-        else "Triangular"
-    )
-
-    representation_label = (
-        "spin as cell"
-        if args.representation == "cell"
-        else "spin as vertex"
-    )
-
-    prefix = (
-        f"{args.lattice_type}_"
-        f"{args.representation}"
+        else "Tri."
     )
 
     for csv_name, config in PLOTS.items():
@@ -181,21 +333,21 @@ def main() -> None:
             continue
 
         output_path = (
-            args.output_dir
-            / f"{prefix}_{config['output']}"
+            variant_output_dir
+            / config["output"]
         )
 
         title = (
-            f"{lattice_label} Ising, "
-            f"{representation_label}: "
-            f"{config['title']}"
+            f"{config['title']} "
+            f"({lattice_label})"
         )
 
         make_plot(
-            csv_path,
-            output_path,
-            title,
-            config["ylabel"],
+            csv_path=csv_path,
+            output_path=output_path,
+            title=title,
+            ylabel=config["ylabel"],
+            tick_group=config["tick_group"],
         )
 
     print("Done.")

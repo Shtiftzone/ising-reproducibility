@@ -128,7 +128,7 @@ def collect_observables(
 
       <|M|>
       <E>
-      <|EC_sym|>, where EC_sym = (chi_neg - chi_pos) / 2
+      <|EC_sym|>, where EC_sym = (chi_pos - chi_neg) / 2
       <EC_avg>,   where EC_avg = (chi_neg + chi_pos) / 2
     """
     if not results_dir.is_dir():
@@ -245,8 +245,8 @@ def collect_observables(
         chi_neg_values = chi_neg[:n_euler, 0]
 
         ec_sym = (
-            chi_neg_values
-            - chi_pos_values
+            chi_pos_values
+            - chi_neg_values
         ) / 2.0
 
         ec_avg = (

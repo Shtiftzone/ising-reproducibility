@@ -165,7 +165,7 @@ int main(int argc, char** argv)
             );
 
             O2[i].push_back(
-                abs(F1p - F1n) / vol
+                abs(pM + Chip - Chin) / vol
             );
         }
     }

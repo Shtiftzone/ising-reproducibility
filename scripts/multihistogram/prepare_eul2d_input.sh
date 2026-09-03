@@ -1,40 +1,83 @@
 #!/bin/bash
 set -euo pipefail
+
 export LC_ALL=C
 export LC_NUMERIC=C
 
-if [[ $# -ne 3 ]]; then
+if [[ $# -ne 4 ]]; then
     echo "Usage:"
-    echo "  $0 <temperatures_dir> <simulation_results_dir> <output_data_dir>"
+    echo "  $0 <lattice_type> <representation> <temperatures_dir> <simulation_results_dir>"
     echo
     echo "Examples:"
-    echo "  Square lattice:"
-    echo "    $0 data/temperatures/square results/square_simulations data/eul2d/square"
+    echo "  Square, spin as cell:"
+    echo "    $0 square cell data/temperatures/square /path/to/square/cell"
     echo
-    echo "  Triangular lattice:"
-    echo "    $0 data/temperatures/triangular results/triangular_simulations data/eul2d/triangular"
+    echo "  Square, spin as vertex:"
+    echo "    $0 square vertex data/temperatures/square /path/to/square/vertex"
+    echo
+    echo "  Triangular, spin as vertex:"
+    echo "    $0 triangular vertex data/temperatures/triangular /path/to/triangular/vertex"
     exit 1
 fi
 
-TEMPERATURES_DIR="$1"
-RESULTS_DIR="$2"
-DATA_DIR="$3"
+LATTICE_TYPE="$1"
+REPRESENTATION="$2"
+TEMPERATURES_DIR="$3"
+RESULTS_DIR="$4"
+
+case "$LATTICE_TYPE" in
+    square|triangular)
+        ;;
+    *)
+        echo "Invalid lattice type: $LATTICE_TYPE"
+        echo "Expected: square or triangular"
+        exit 1
+        ;;
+esac
+
+case "$REPRESENTATION" in
+    cell|vertex)
+        ;;
+    *)
+        echo "Invalid representation: $REPRESENTATION"
+        echo "Expected: cell or vertex"
+        exit 1
+        ;;
+esac
+
+DATA_DIR="data/eul2d/$LATTICE_TYPE/$REPRESENTATION"
 
 mkdir -p "$DATA_DIR"
 
-mapfile -t TEMP_FILES < <(find "$TEMPERATURES_DIR" -maxdepth 1 -type f -name 'temperatures_*.txt' | sort -V)
+mapfile -t TEMP_FILES < <(
+    find "$TEMPERATURES_DIR" \
+        -maxdepth 1 \
+        -type f \
+        -name 'temperatures_*.txt' \
+    | sort -V
+)
 
 if [[ ${#TEMP_FILES[@]} -eq 0 ]]; then
     echo "No temperatures_*.txt files found in $TEMPERATURES_DIR"
     exit 1
 fi
 
+echo "Lattice type:    $LATTICE_TYPE"
+echo "Representation:  $REPRESENTATION"
+echo "Results dir:     $RESULTS_DIR"
+echo "Output dir:      $DATA_DIR"
+echo
+
 echo "Found temperature files:"
 printf '  %s\n' "${TEMP_FILES[@]}"
 echo
 
 for TEMP_FILE in "${TEMP_FILES[@]}"; do
-    SIZE=$(basename "$TEMP_FILE" | sed -E 's/^temperatures_([0-9]+)\.txt$/\1/')
+
+    SIZE=$(
+        basename "$TEMP_FILE" \
+        | sed -E 's/^temperatures_([0-9]+)\.txt$/\1/'
+    )
 
     if [[ -z "$SIZE" ]]; then
         echo "Could not read SIZE from filename: $TEMP_FILE"
@@ -55,22 +98,38 @@ for TEMP_FILE in "${TEMP_FILES[@]}"; do
     echo "=============================================="
 
     while read -r T IDX; do
+
         [[ -z "${T:-}" || -z "${IDX:-}" ]] && continue
 
         TFORMATTED=$(printf "%.4f" "$T")
 
         SDIR=""
+
         if [[ -d "$RESULTS_DIR/T_${TFORMATTED}/size_${SIZE}" ]]; then
+
             SDIR="$RESULTS_DIR/T_${TFORMATTED}/size_${SIZE}"
+
         else
-            MATCH=$(find "$RESULTS_DIR" -maxdepth 1 -type d -name "T_${TFORMATTED}*" | sort -V | head -n 1 || true)
+
+            MATCH=$(
+                find "$RESULTS_DIR" \
+                    -maxdepth 1 \
+                    -type d \
+                    -name "T_${TFORMATTED}*" \
+                | sort -V \
+                | head -n 1 \
+                || true
+            )
+
             if [[ -n "$MATCH" && -d "$MATCH/size_${SIZE}" ]]; then
                 SDIR="$MATCH/size_${SIZE}"
             fi
         fi
 
         if [[ -z "$SDIR" ]]; then
-            echo "  Skipping T=$TFORMATTED, idx=$IDX: missing directory T_${TFORMATTED}*/size_${SIZE}"
+            echo \
+                "  Skipping T=$TFORMATTED, idx=$IDX: " \
+                "missing directory T_${TFORMATTED}*/size_${SIZE}"
             continue
         fi
 
@@ -84,12 +143,14 @@ for TEMP_FILE in "${TEMP_FILES[@]}"; do
         FN="$SDIR/fnfile.txt"
 
         MISSING=0
+
         for f in "$ME" "$EP" "$EN" "$FP" "$FN"; do
             if [[ ! -s "$f" ]]; then
                 echo "    missing or empty file: $f"
                 MISSING=1
             fi
         done
+
         [[ $MISSING -eq 1 ]] && continue
 
         lines_me=$(wc -l < "$ME")
@@ -99,6 +160,7 @@ for TEMP_FILE in "${TEMP_FILES[@]}"; do
         lines_fn=$(wc -l < "$FN")
 
         MIN_LINES=$lines_me
+
         (( lines_ep < MIN_LINES )) && MIN_LINES=$lines_ep
         (( lines_en < MIN_LINES )) && MIN_LINES=$lines_en
         (( lines_fp < MIN_LINES )) && MIN_LINES=$lines_fp
@@ -110,6 +172,7 @@ for TEMP_FILE in "${TEMP_FILES[@]}"; do
         fi
 
         OUTFILE="$SIZE_DIR/conf-${TFORMATTED}-${IDX}.dat"
+
         rm -f "$OUTFILE"
 
         paste \
@@ -119,13 +182,25 @@ for TEMP_FILE in "${TEMP_FILES[@]}"; do
             <(head -n "$MIN_LINES" "$FP") \
             <(head -n "$MIN_LINES" "$FN") \
         | awk -F'\t' '
-            BEGIN { OFS=" " }
+            BEGIN {
+                OFS=" "
+            }
             {
                 split($1, me, ",")
                 split($4, fp, ",")
                 split($5, fn, ",")
 
-                print me[1], me[2], $2, $3, fp[1], fp[2], fp[3], fn[1], fn[2], fn[3]
+                print \
+                    me[1], \
+                    me[2], \
+                    $2, \
+                    $3, \
+                    fp[1], \
+                    fp[2], \
+                    fp[3], \
+                    fn[1], \
+                    fn[2], \
+                    fn[3]
             }
         ' > "$OUTFILE"
 

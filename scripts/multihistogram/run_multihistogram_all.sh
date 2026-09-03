@@ -4,27 +4,50 @@ set -euo pipefail
 export LC_ALL=C
 export LC_NUMERIC=C
 
-if [[ $# -lt 4 || $# -gt 5 ]]; then
+if [[ $# -lt 3 || $# -gt 4 ]]; then
     echo "Usage:"
-    echo "  $0 <mh_executable_dir> <temperatures_dir> <input_data_dir> <output_dir> [refinement_factor]"
+    echo "  $0 <lattice_type> <representation> <mh_executable_dir> [refinement_factor]"
     echo
     echo "Examples:"
-    echo "  Square lattice:"
-    echo "    $0 src/multihistogram data/temperatures/square data/eul2d/square results/multihistogram/square"
+    echo "  Square, cell representation:"
+    echo "    $0 square cell src/multihistogram"
     echo
-    echo "  Triangular lattice:"
-    echo "    $0 src/multihistogram data/temperatures/triangular data/eul2d/triangular results/multihistogram/triangular"
+    echo "  Triangular, vertex representation:"
+    echo "    $0 triangular vertex src/multihistogram"
     echo
     echo "  With refinement factor 100:"
-    echo "    $0 src/multihistogram data/temperatures/square data/eul2d/square results/multihistogram/square 100"
+    echo "    $0 square cell src/multihistogram 100"
     exit 1
 fi
 
-MH_EXECUTABLE_DIR="$1"
-TEMPERATURES_DIR="$2"
-INPUT_DATA_DIR="$3"
-OUTPUT_DIR="$4"
-REFINEMENT_FACTOR="${5:-50}"
+LATTICE_TYPE="$1"
+REPRESENTATION="$2"
+MH_EXECUTABLE_DIR="$3"
+REFINEMENT_FACTOR="${4:-50}"
+
+case "$LATTICE_TYPE" in
+    square|triangular)
+        ;;
+    *)
+        echo "Invalid lattice type: $LATTICE_TYPE"
+        echo "Expected: square or triangular"
+        exit 1
+        ;;
+esac
+
+case "$REPRESENTATION" in
+    cell|vertex)
+        ;;
+    *)
+        echo "Invalid representation: $REPRESENTATION"
+        echo "Expected: cell or vertex"
+        exit 1
+        ;;
+esac
+
+TEMPERATURES_DIR="data/temperatures/$LATTICE_TYPE"
+INPUT_DATA_DIR="data/eul2d/$LATTICE_TYPE/$REPRESENTATION"
+OUTPUT_DIR="results/multihistogram/$LATTICE_TYPE/$REPRESENTATION"
 
 RW_EXECUTABLE="$MH_EXECUTABLE_DIR/Rw"
 
@@ -54,6 +77,13 @@ mkdir -p "$OUTPUT_DIR"
 
 SIZES=(64 96 128 192 256 384 512 768 1024 1536 2048 3072)
 
+echo "Lattice type:    $LATTICE_TYPE"
+echo "Representation:  $REPRESENTATION"
+echo "Temperatures:    $TEMPERATURES_DIR"
+echo "Input data:      $INPUT_DATA_DIR"
+echo "Output:          $OUTPUT_DIR"
+echo
+
 for GRID_SIZE in "${SIZES[@]}"; do
     TEMPS_FILE="$TEMPERATURES_DIR/temperatures_${GRID_SIZE}.txt"
     SIZE_DATA_DIR="$INPUT_DATA_DIR/size_${GRID_SIZE}"
@@ -68,8 +98,8 @@ for GRID_SIZE in "${SIZES[@]}"; do
         continue
     fi
 
-    TMIN=$(awk 'NR==1{print $1}' "$TEMPS_FILE")
-    TMAX=$(awk 'END{print $1}' "$TEMPS_FILE")
+    TMIN=$(awk 'NR==1 {print $1}' "$TEMPS_FILE")
+    TMAX=$(awk 'END {print $1}' "$TEMPS_FILE")
 
     N_TEMPS=$(wc -l < "$TEMPS_FILE")
 
@@ -85,6 +115,8 @@ for GRID_SIZE in "${SIZES[@]}"; do
 
     echo "=============================================="
     echo "Running multihistogram analysis for L=$GRID_SIZE"
+    echo "Lattice: $LATTICE_TYPE"
+    echo "Representation: $REPRESENTATION"
     echo "Temperature file: $TEMPS_FILE"
     echo "Input data directory: $SIZE_DATA_DIR"
     echo "Tmin=$TMIN"
