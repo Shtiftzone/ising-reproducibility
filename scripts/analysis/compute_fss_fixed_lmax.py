@@ -9,6 +9,18 @@ from scipy.optimize import curve_fit
 from scipy.stats import chi2 as chi2_dist
 
 
+DEFAULT_LMIN = {
+    "square": {
+        "ec": 64,
+        "m": 64,
+    },
+    "triangular": {
+        "ec": 128,
+        "m": 96,
+    },
+}
+
+
 def tc_scaling(L, Tc_inf, A, nu):
     return Tc_inf + A * L ** (-1.0 / nu)
 
@@ -16,6 +28,7 @@ def tc_scaling(L, Tc_inf, A, nu):
 def fixed_lmax_scan(
     df,
     L_max,
+    L_min_start,
     min_points=6,
     use_aicc=True,
 ):
@@ -70,10 +83,25 @@ def fixed_lmax_scan(
     representation = representations[0]
     variant = variants[0]
 
+    candidate_lmins = (
+        df.loc[
+            df["L"] >= L_min_start,
+            "L",
+        ]
+        .drop_duplicates()
+        .to_numpy()
+    )
+
+    if len(candidate_lmins) == 0:
+        raise ValueError(
+            f"No lattice sizes available with "
+            f"L >= {L_min_start}"
+        )
+
     records = []
     prev = None
 
-    for L_min in df["L"].to_numpy():
+    for L_min in candidate_lmins:
         df_fit = df[
             (df["L"] >= L_min)
             & (df["L"] <= L_max)
@@ -119,9 +147,14 @@ def fixed_lmax_scan(
             continue
 
         Tc_inf, A, nu = popt
-        dTc_inf, dA, dnu = np.sqrt(np.diag(pcov))
+        dTc_inf, dA, dnu = np.sqrt(
+            np.diag(pcov)
+        )
 
-        Tc_fit = tc_scaling(L, *popt)
+        Tc_fit = tc_scaling(
+            L,
+            *popt,
+        )
 
         chi2 = np.sum(
             ((Tc - Tc_fit) / sigma) ** 2
@@ -137,7 +170,10 @@ def fixed_lmax_scan(
         )
 
         p_value = (
-            1.0 - chi2_dist.cdf(chi2, dof)
+            1.0 - chi2_dist.cdf(
+                chi2,
+                dof,
+            )
             if dof > 0
             else np.nan
         )
@@ -195,13 +231,16 @@ def fixed_lmax_scan(
 
     if not records:
         raise RuntimeError(
-            f"No successful fits for L_max={L_max}"
+            f"No successful fits for "
+            f"L_max={L_max}, "
+            f"L_min_start={L_min_start}"
         )
 
     out = pd.DataFrame(records)
 
     out["delta_AIC"] = (
-        out["AIC"] - out["AIC"].min()
+        out["AIC"]
+        - out["AIC"].min()
     )
 
     return (
@@ -221,26 +260,36 @@ def main():
 
     parser.add_argument(
         "--lattice-type",
-        choices=["square", "triangular"],
+        choices=[
+            "square",
+            "triangular",
+        ],
         required=True,
     )
 
     parser.add_argument(
         "--representation",
-        choices=["cell", "vertex"],
+        choices=[
+            "cell",
+            "vertex",
+        ],
         required=True,
     )
 
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path("data/analysis_csv"),
+        default=Path(
+            "data/analysis_csv"
+        ),
     )
 
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("data/table_csv"),
+        default=Path(
+            "data/table_csv"
+        ),
     )
 
     parser.add_argument(
@@ -275,8 +324,15 @@ def main():
         exist_ok=True,
     )
 
-    ec_path = input_dir / "pseudocritical_ec.csv"
-    m_path = input_dir / "pseudocritical_m.csv"
+    ec_path = (
+        input_dir
+        / "pseudocritical_ec.csv"
+    )
+
+    m_path = (
+        input_dir
+        / "pseudocritical_m.csv"
+    )
 
     if not ec_path.is_file():
         raise FileNotFoundError(
@@ -288,12 +344,21 @@ def main():
             f"Missing input file: {m_path}"
         )
 
-    df_ec = pd.read_csv(ec_path)
-    df_m = pd.read_csv(m_path)
+    df_ec = pd.read_csv(
+        ec_path
+    )
+
+    df_m = pd.read_csv(
+        m_path
+    )
 
     common_sizes = sorted(
-        set(df_ec["L"].astype(int))
-        & set(df_m["L"].astype(int))
+        set(
+            df_ec["L"].astype(int)
+        )
+        & set(
+            df_m["L"].astype(int)
+        )
     )
 
     if len(common_sizes) < 2:
@@ -304,13 +369,33 @@ def main():
     L_max = common_sizes[-1]
     L_second = common_sizes[-2]
 
-    print(f"Lattice type: {args.lattice_type}")
-    print(f"Representation: {args.representation}")
-    print(f"L_max: {L_max}")
-    print(f"Second L_max: {L_second}")
+    print(
+        f"Lattice type: "
+        f"{args.lattice_type}"
+    )
+
+    print(
+        f"Representation: "
+        f"{args.representation}"
+    )
+
+    print(
+        f"L_max: "
+        f"{L_max}"
+    )
+
+    print(
+        f"Second L_max: "
+        f"{L_second}"
+    )
+
     print(
         "Information criterion: "
-        + ("AIC" if args.aic else "AICc")
+        + (
+            "AIC"
+            if args.aic
+            else "AICc"
+        )
     )
 
     for label, current_Lmax in [
@@ -321,22 +406,35 @@ def main():
             ("ec", df_ec),
             ("m", df_m),
         ]:
+            L_min_start = DEFAULT_LMIN[
+                args.lattice_type
+            ][
+                variant
+            ]
+
             print()
+
             print(
                 f"Running {variant} scan "
-                f"with L_max={current_Lmax}"
+                f"with "
+                f"L_min >= {L_min_start}, "
+                f"L_max={current_Lmax}"
             )
 
             result = fixed_lmax_scan(
                 df=df,
                 L_max=current_Lmax,
+                L_min_start=L_min_start,
                 min_points=args.min_points,
                 use_aicc=not args.aic,
             )
 
             output_path = (
                 output_dir
-                / f"lmin_{variant}_lmax_{label}.csv"
+                / (
+                    f"lmin_{variant}_"
+                    f"lmax_{label}.csv"
+                )
             )
 
             result.to_csv(
@@ -345,7 +443,9 @@ def main():
                 float_format="%.10g",
             )
 
-            print(f"Wrote {output_path}")
+            print(
+                f"Wrote {output_path}"
+            )
 
     print()
     print("Done.")

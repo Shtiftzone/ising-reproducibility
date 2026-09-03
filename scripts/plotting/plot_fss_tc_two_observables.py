@@ -12,21 +12,21 @@ from scipy.optimize import curve_fit
 DEFAULT_LMIN = {
     "square": {
         "cell": {
-            "ec": 96,
-            "m": 96,
+            "ec": 64,
+            "m": 64,
         },
         "vertex": {
-            "ec": 96,
-            "m": 96,
+            "ec": 64,
+            "m": 64,
         },
     },
     "triangular": {
         "cell": {
-            "ec": 96,
+            "ec": 128,
             "m": 96,
         },
         "vertex": {
-            "ec": 96,
+            "ec": 128,
             "m": 64,
         },
     },

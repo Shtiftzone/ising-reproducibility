@@ -5,6 +5,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.ticker import ScalarFormatter
 
 
 SQUARE_TC_THEORY = 2.269185314213022
@@ -119,7 +120,9 @@ def plot_nu(
         jitter_factor,
     )
 
-    plt.figure(figsize=(9, 5.5))
+    plt.figure(
+        figsize=(9, 5.5)
+    )
 
     plt.errorbar(
         L_m,
@@ -152,10 +155,21 @@ def plot_nu(
         label=r"Theory $\nu=1$",
     )
 
-    plt.xlabel(r"$L_{\min}$")
-    plt.ylabel(r"Fitted $\nu$")
-    plt.title(title)
-    plt.xscale("log")
+    plt.xlabel(
+        r"$L_{\min}$"
+    )
+
+    plt.ylabel(
+        r"Fitted $\nu$"
+    )
+
+    plt.title(
+        title
+    )
+
+    plt.xscale(
+        "log"
+    )
 
     plt.grid(
         True,
@@ -176,7 +190,9 @@ def plot_nu(
 
     plt.close()
 
-    print(f"Wrote {output_path}")
+    print(
+        f"Wrote {output_path}"
+    )
 
 
 def plot_tc(
@@ -194,7 +210,9 @@ def plot_tc(
         jitter_factor,
     )
 
-    plt.figure(figsize=(8, 5))
+    plt.figure(
+        figsize=(8, 5)
+    )
 
     plt.errorbar(
         L_m,
@@ -221,10 +239,35 @@ def plot_tc(
         label=theory_label,
     )
 
-    plt.xlabel(r"$L_{\min}$")
-    plt.ylabel(r"Fitted $T_c$")
-    plt.title(title)
-    plt.xscale("log")
+    plt.xlabel(
+        r"$L_{\min}$"
+    )
+
+    plt.ylabel(
+        r"Fitted $T_c$"
+    )
+
+    plt.title(
+        title
+    )
+
+    plt.xscale(
+        "log"
+    )
+
+    ax = plt.gca()
+
+    formatter = ScalarFormatter(
+        useOffset=False
+    )
+
+    formatter.set_scientific(
+        False
+    )
+
+    ax.yaxis.set_major_formatter(
+        formatter
+    )
 
     plt.grid(
         True,
@@ -232,6 +275,7 @@ def plot_tc(
     )
 
     plt.legend()
+
     plt.tight_layout()
 
     plt.savefig(
@@ -242,7 +286,9 @@ def plot_tc(
 
     plt.close()
 
-    print(f"Wrote {output_path}")
+    print(
+        f"Wrote {output_path}"
+    )
 
 
 def load_pair(
@@ -264,10 +310,14 @@ def load_pair(
     missing = []
 
     if not ec_path.is_file():
-        missing.append(ec_path)
+        missing.append(
+            ec_path
+        )
 
     if not m_path.is_file():
-        missing.append(m_path)
+        missing.append(
+            m_path
+        )
 
     if missing:
         raise FileNotFoundError(
@@ -278,8 +328,13 @@ def load_pair(
             )
         )
 
-    df_ec = pd.read_csv(ec_path)
-    df_m = pd.read_csv(m_path)
+    df_ec = pd.read_csv(
+        ec_path
+    )
+
+    df_m = pd.read_csv(
+        m_path
+    )
 
     validate_metadata(
         df_ec,
@@ -295,7 +350,10 @@ def load_pair(
         "m",
     )
 
-    return df_ec, df_m
+    return (
+        df_ec,
+        df_m,
+    )
 
 
 def main():
@@ -353,8 +411,13 @@ def main():
 
     args = parser.parse_args()
 
-    lattice_type = args.lattice_type
-    representation = args.representation
+    lattice_type = (
+        args.lattice_type
+    )
+
+    representation = (
+        args.representation
+    )
 
     input_dir = (
         args.base_input_dir
@@ -374,10 +437,8 @@ def main():
         exist_ok=True,
     )
 
-    tc_theory, theory_label = (
-        get_theory(
-            lattice_type
-        )
+    tc_theory, theory_label = get_theory(
+        lattice_type
     )
 
     print(
