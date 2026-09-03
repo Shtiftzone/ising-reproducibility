@@ -7,6 +7,11 @@ This repository contains portable scripts for running two-dimensional Ising simu
 1. the square lattice
 2. the triangular lattice
 
+For each lattice, two constructions are available:
+
+1. `cell`
+2. `vertex`
+
 The simulation executables are built from the source code in:
 
 ```text
@@ -28,8 +33,11 @@ cd ../..
 This builds the executables used in the analysis:
 
 ```text
-ising2d-L    # square lattice
-isingtr-L    # triangular lattice
+ising2d-cell-L      # square lattice, spin-as-cell construction
+ising2d-vertex-L    # square lattice, spin-as-vertex construction
+
+isingtr-cell-L      # triangular lattice, spin-as-cell construction
+isingtr-vertex-L    # triangular lattice, spin-as-vertex construction
 ```
 
 where `L` is the linear lattice size of the `L x L` grid.
@@ -47,7 +55,21 @@ The square-lattice simulations can be run with:
 ```bash
 bash scripts/simulation/run_square_2d_simulations.sh \
   src/simulation \
-  results/square_simulations \
+  results/square_cell_simulations \
+  cell \
+  2.22 \
+  2.32 \
+  0.0005 \
+  200
+```
+
+or, for the vertex construction:
+
+```bash
+bash scripts/simulation/run_square_2d_simulations.sh \
+  src/simulation \
+  results/square_vertex_simulations \
+  vertex \
   2.22 \
   2.32 \
   0.0005 \
@@ -59,10 +81,11 @@ Arguments:
 ```text
 1. executable directory
 2. output results directory
-3. starting temperature
-4. final temperature
-5. temperature step
-6. number of configurations
+3. construction: cell or vertex
+4. starting temperature
+5. final temperature
+6. temperature step
+7. number of configurations
 ```
 
 The default square-lattice parameters are:
@@ -74,6 +97,8 @@ T_step  = 0.0005
 Nconf   = 200
 ```
 
+If the optional temperature and configuration arguments are omitted, the defaults above are used.
+
 ## Triangular-lattice simulations
 
 The triangular-lattice simulations can be run with:
@@ -81,7 +106,21 @@ The triangular-lattice simulations can be run with:
 ```bash
 bash scripts/simulation/run_triangular_2d_simulations.sh \
   src/simulation \
-  results/triangular_simulations \
+  results/triangular_cell_simulations \
+  cell \
+  3.59 \
+  3.72 \
+  0.0005 \
+  200
+```
+
+or, for the vertex construction:
+
+```bash
+bash scripts/simulation/run_triangular_2d_simulations.sh \
+  src/simulation \
+  results/triangular_vertex_simulations \
+  vertex \
   3.59 \
   3.72 \
   0.0005 \
@@ -93,10 +132,11 @@ Arguments:
 ```text
 1. executable directory
 2. output results directory
-3. starting temperature
-4. final temperature
-5. temperature step
-6. number of configurations
+3. construction: cell or vertex
+4. starting temperature
+5. final temperature
+6. temperature step
+7. number of configurations
 ```
 
 The default triangular-lattice parameters are:
@@ -107,6 +147,8 @@ T_end   = 3.72
 T_step  = 0.0005
 Nconf   = 200
 ```
+
+If the optional temperature and configuration arguments are omitted, the defaults above are used.
 
 ## Output structure
 
@@ -119,8 +161,11 @@ results/<simulation_type>/T_TTTTT/size_L/
 For example:
 
 ```text
-results/square_simulations/T_2.22000/size_128/
-results/triangular_simulations/T_3.59000/size_128/
+results/square_cell_simulations/T_2.22000/size_128/
+results/square_vertex_simulations/T_2.22000/size_128/
+
+results/triangular_cell_simulations/T_3.59000/size_128/
+results/triangular_vertex_simulations/T_3.59000/size_128/
 ```
 
 For each temperature and lattice size, the simulation writes:
@@ -165,6 +210,6 @@ The seed file is reused by subsequent simulation runs in the same results direct
 
 ## Generated data
 
-Simulation outputs are generated locally and are not tracked by Git.
+Simulation outputs are generated locally.
 
-Large simulation datasets are distributed separately from the source-code repository. The directory structure preserves the lattice type, temperature, and lattice size associated with each simulation output.
+Large simulation datasets are distributed separately from the source-code repository. The directory structure preserves the lattice type, construction, temperature, and lattice size associated with each simulation output.
