@@ -89,115 +89,196 @@ python -m pip install -r requirements.txt
 
 ### 1. Build the simulation executables
 
-```bash
-cd src/simulation
-make
-cd ../..
-```
+From the repository root:
+
+    cd src/simulation
+    make
+    cd ../..
+
+This builds construction-specific executables of the form:
+
+    ising2d-cell-L
+    ising2d-vertex-L
+    isingtr-cell-L
+    isingtr-vertex-L
+
+where L is the lattice size.
+
+The two available constructions are:
+
+    cell
+    vertex
 
 ### 2. Run the simulations
 
+The simulation runner scripts take the construction as an explicit argument: cell or vertex.
+
+To reproduce the full workflow for both constructions, run both constructions for each lattice type.
+
+Square lattice, cell construction:
+
+    bash scripts/simulation/run_square_2d_simulations.sh \
+      src/simulation \
+      results/square_cell_simulations \
+      cell
+
+Square lattice, vertex construction:
+
+    bash scripts/simulation/run_square_2d_simulations.sh \
+      src/simulation \
+      results/square_vertex_simulations \
+      vertex
+
+Triangular lattice, cell construction:
+
+    bash scripts/simulation/run_triangular_2d_simulations.sh \
+      src/simulation \
+      results/triangular_cell_simulations \
+      cell
+
+Triangular lattice, vertex construction:
+
+    bash scripts/simulation/run_triangular_2d_simulations.sh \
+      src/simulation \
+      results/triangular_vertex_simulations \
+      vertex
+
+The default simulation parameters are:
+
 Square lattice:
 
-```bash
-bash scripts/simulation/run_square_2d_simulations.sh \
-  src/simulation \
-  results/square_simulations \
-  2.22 \
-  2.32 \
-  0.0005 \
-  200
-```
+    T_start = 2.22
+    T_end   = 2.32
+    T_step  = 0.0005
+    Nconf   = 200
 
 Triangular lattice:
 
-```bash
-bash scripts/simulation/run_triangular_2d_simulations.sh \
-  src/simulation \
-  results/triangular_simulations \
-  3.59 \
-  3.72 \
-  0.0005 \
-  200
-```
+    T_start = 3.62
+    T_end   = 3.72
+    T_step  = 0.0005
+    Nconf   = 200
 
-These commands run all lattice sizes defined in the simulation workflow. Full production runs are computationally expensive and can be parallelized using the scheduler or execution environment available to the user.
+These defaults can be overridden by passing the optional arguments explicitly.
+
+For example:
+
+    bash scripts/simulation/run_square_2d_simulations.sh \
+      src/simulation \
+      results/square_cell_simulations \
+      cell \
+      2.22 \
+      2.32 \
+      0.0005 \
+      200
+
+The same argument pattern applies to the triangular-lattice runner.
+
+Full production runs are computationally expensive and can be parallelized using the scheduler or execution environment available to the user.
 
 ### 3. Generate the reweighting temperature files
 
 Square lattice:
 
-```bash
-bash scripts/multihistogram/generate_square_reweighting_temperatures.sh
-```
+    bash scripts/multihistogram/generate_square_reweighting_temperatures.sh
 
 Triangular lattice:
 
-```bash
-bash scripts/multihistogram/generate_triangular_reweighting_temperatures.sh
-```
+    bash scripts/multihistogram/generate_triangular_reweighting_temperatures.sh
 
 This creates:
 
-```text
-data/temperatures/square/
-data/temperatures/triangular/
-```
+    data/temperatures/square/
+    data/temperatures/triangular/
 
 The reweighting windows are explicitly defined by lattice size in the corresponding scripts.
 
 ### 4. Prepare multihistogram input data
 
-Square lattice:
+Prepare the multihistogram input separately for each lattice type and construction.
 
-```bash
-bash scripts/multihistogram/prepare_eul2d_input.sh \
-  data/temperatures/square \
-  results/square_simulations \
-  data/eul2d/square
-```
+Square lattice, cell construction:
 
-Triangular lattice:
+    bash scripts/multihistogram/prepare_eul2d_input.sh \
+      data/temperatures/square \
+      results/square_cell_simulations \
+      data/eul2d/square/cell
 
-```bash
-bash scripts/multihistogram/prepare_eul2d_input.sh \
-  data/temperatures/triangular \
-  results/triangular_simulations \
-  data/eul2d/triangular
-```
+Square lattice, vertex construction:
+
+    bash scripts/multihistogram/prepare_eul2d_input.sh \
+      data/temperatures/square \
+      results/square_vertex_simulations \
+      data/eul2d/square/vertex
+
+Triangular lattice, cell construction:
+
+    bash scripts/multihistogram/prepare_eul2d_input.sh \
+      data/temperatures/triangular \
+      results/triangular_cell_simulations \
+      data/eul2d/triangular/cell
+
+Triangular lattice, vertex construction:
+
+    bash scripts/multihistogram/prepare_eul2d_input.sh \
+      data/temperatures/triangular \
+      results/triangular_vertex_simulations \
+      data/eul2d/triangular/vertex
 
 ### 5. Build the multihistogram executable
 
-```bash
-cd src/multihistogram
-make
-cd ../..
-```
+From the repository root:
+
+    cd src/multihistogram
+    make
+    cd ../..
 
 ### 6. Run multihistogram reweighting
 
-Square lattice:
+Run the multihistogram reweighting separately for each lattice type and construction.
 
-```bash
-bash scripts/multihistogram/run_multihistogram_all.sh \
-  src/multihistogram \
-  data/temperatures/square \
-  data/eul2d/square \
-  results/multihistogram/square
-```
+Square lattice, cell construction:
 
-Triangular lattice:
+    bash scripts/multihistogram/run_multihistogram_all.sh \
+      src/multihistogram \
+      data/temperatures/square \
+      data/eul2d/square/cell \
+      results/multihistogram/square/cell
 
-```bash
-bash scripts/multihistogram/run_multihistogram_all.sh \
-  src/multihistogram \
-  data/temperatures/triangular \
-  data/eul2d/triangular \
-  results/multihistogram/triangular
-```
+Square lattice, vertex construction:
 
-The default reweighting refinement factor is `50`.
+    bash scripts/multihistogram/run_multihistogram_all.sh \
+      src/multihistogram \
+      data/temperatures/square \
+      data/eul2d/square/vertex \
+      results/multihistogram/square/vertex
 
+Triangular lattice, cell construction:
+
+    bash scripts/multihistogram/run_multihistogram_all.sh \
+      src/multihistogram \
+      data/temperatures/triangular \
+      data/eul2d/triangular/cell \
+      results/multihistogram/triangular/cell
+
+Triangular lattice, vertex construction:
+
+    bash scripts/multihistogram/run_multihistogram_all.sh \
+      src/multihistogram \
+      data/temperatures/triangular \
+      data/eul2d/triangular/vertex \
+      results/multihistogram/triangular/vertex
+
+The default reweighting refinement factor is 50.
+
+A different refinement factor can be passed as the final argument. For example:
+
+    bash scripts/multihistogram/run_multihistogram_all.sh \
+      src/multihistogram \
+      data/temperatures/square \
+      data/eul2d/square/cell \
+      results/multihistogram/square/cell \
+      100
 ## Detailed documentation
 
 More detailed descriptions of each stage are available in:
