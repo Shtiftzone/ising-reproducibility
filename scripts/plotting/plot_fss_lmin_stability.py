@@ -3,6 +3,8 @@
 import argparse
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import ScalarFormatter
@@ -11,14 +13,36 @@ from matplotlib.ticker import ScalarFormatter
 SQUARE_TC_THEORY = 2.269185314213022
 TRIANGULAR_TC_THEORY = 3.64095690651
 
+plt.rcParams.update({
+    "font.size": 20,
+    "axes.titlesize": 24,
+    "axes.labelsize": 20,
+    "xtick.labelsize": 20,
+    "ytick.labelsize": 20,
+    "legend.fontsize": 20,
+    "legend.title_fontsize": 20,
+    "figure.titlesize": 24,
+    "figure.labelsize": 24,
+})
 
-def jittered_lmin(df_m, df_ec, factor):
+COLOR_EC_SYM = "#0072B2"
+COLOR_M = "#D55E00"
+COLOR_D = "#009E73"
+
+# Identical canvas size and axes margins for all four panels.
+FIGURE_SIZE = (9, 5.5)
+PLOT_MARGINS = dict(left=0.17, right=0.96, bottom=0.17, top=0.85)
+
+
+def jittered_lmin(df_m, df_d, df_ec_sym, factor):
     L_m = df_m["L_min"].to_numpy(dtype=float)
-    L_ec = df_ec["L_min"].to_numpy(dtype=float)
+    L_d = df_d["L_min"].to_numpy(dtype=float)
+    L_ec_sym = df_ec_sym["L_min"].to_numpy(dtype=float)
 
     return (
         L_m * (1.0 - factor),
-        L_ec * (1.0 + factor),
+        L_d,
+        L_ec_sym * (1.0 + factor),
     )
 
 
@@ -59,6 +83,13 @@ def validate_metadata(
     if missing:
         raise ValueError(
             f"Input CSV is missing columns: {sorted(missing)}"
+        )
+
+    required_fit = {"Tc_inf", "dTc_inf", "nu", "dnu"}
+    missing_fit = required_fit - set(df.columns)
+    if missing_fit:
+        raise ValueError(
+            f"Input CSV is missing fit columns: {sorted(missing_fit)}"
         )
 
     lattice_values = (
@@ -108,21 +139,21 @@ def validate_metadata(
 
 
 def plot_nu(
-    df_ec,
+    df_ec_sym,
     df_m,
+    df_d,
     output_path,
     title,
     jitter_factor,
 ):
-    L_m, L_ec = jittered_lmin(
+    L_m, L_d, L_ec_sym = jittered_lmin(
         df_m,
-        df_ec,
+        df_d,
+        df_ec_sym,
         jitter_factor,
     )
 
-    plt.figure(
-        figsize=(9, 5.5)
-    )
+    plt.figure(figsize=FIGURE_SIZE)
 
     plt.errorbar(
         L_m,
@@ -133,19 +164,34 @@ def plot_nu(
         elinewidth=1.2,
         markersize=5,
         linewidth=1.5,
-        label="Magnetization",
+        color=COLOR_M,
+        label=r"$m$",
     )
 
     plt.errorbar(
-        L_ec,
-        df_ec["nu"],
-        yerr=df_ec["dnu"],
+        L_d,
+        df_d["nu"],
+        yerr=df_d["dnu"],
+        fmt="^-",
+        capsize=4,
+        elinewidth=1.2,
+        markersize=5,
+        linewidth=1.5,
+        color=COLOR_D,
+        label=r"$d$",
+    )
+
+    plt.errorbar(
+        L_ec_sym,
+        df_ec_sym["nu"],
+        yerr=df_ec_sym["dnu"],
         fmt="s-",
         capsize=4,
         elinewidth=1.2,
         markersize=5,
         linewidth=1.5,
-        label=r"$EC_{\mathrm{sym}}$",
+        color=COLOR_EC_SYM,
+        label=r"$\mathrm{ec}_{\mathrm{sym}}$",
     )
 
     plt.axhline(
@@ -180,12 +226,11 @@ def plot_nu(
         frameon=True,
     )
 
-    plt.tight_layout()
+    plt.subplots_adjust(**PLOT_MARGINS)
 
     plt.savefig(
         output_path,
         dpi=300,
-        bbox_inches="tight",
     )
 
     plt.close()
@@ -196,23 +241,23 @@ def plot_nu(
 
 
 def plot_tc(
-    df_ec,
+    df_ec_sym,
     df_m,
+    df_d,
     output_path,
     title,
     tc_theory,
     jitter_factor,
     theory_label,
 ):
-    L_m, L_ec = jittered_lmin(
+    L_m, L_d, L_ec_sym = jittered_lmin(
         df_m,
-        df_ec,
+        df_d,
+        df_ec_sym,
         jitter_factor,
     )
 
-    plt.figure(
-        figsize=(8, 5)
-    )
+    plt.figure(figsize=FIGURE_SIZE)
 
     plt.errorbar(
         L_m,
@@ -220,16 +265,28 @@ def plot_tc(
         yerr=df_m["dTc_inf"],
         fmt="o-",
         capsize=3,
-        label="Magnetization",
+        color=COLOR_M,
+        label=r"$m$",
     )
 
     plt.errorbar(
-        L_ec,
-        df_ec["Tc_inf"],
-        yerr=df_ec["dTc_inf"],
+        L_d,
+        df_d["Tc_inf"],
+        yerr=df_d["dTc_inf"],
+        fmt="^-",
+        capsize=3,
+        color=COLOR_D,
+        label=r"$d$",
+    )
+
+    plt.errorbar(
+        L_ec_sym,
+        df_ec_sym["Tc_inf"],
+        yerr=df_ec_sym["dTc_inf"],
         fmt="s-",
         capsize=3,
-        label=r"$EC_{\mathrm{sym}}$",
+        color=COLOR_EC_SYM,
+        label=r"$\mathrm{ec}_{\mathrm{sym}}$",
     )
 
     plt.axhline(
@@ -276,12 +333,11 @@ def plot_tc(
 
     plt.legend()
 
-    plt.tight_layout()
+    plt.subplots_adjust(**PLOT_MARGINS)
 
     plt.savefig(
         output_path,
         dpi=300,
-        bbox_inches="tight",
     )
 
     plt.close()
@@ -291,13 +347,14 @@ def plot_tc(
     )
 
 
-def load_pair(
+def load_triplet(
     input_dir,
     suffix,
     lattice_type,
     representation,
 ):
-    ec_path = (
+    # Keep existing filenames used by the analysis pipeline.
+    ec_sym_path = (
         input_dir
         / f"lmin_ec_lmax_{suffix}.csv"
     )
@@ -307,17 +364,16 @@ def load_pair(
         / f"lmin_m_lmax_{suffix}.csv"
     )
 
+    d_path = (
+        input_dir
+        / f"lmin_d_lmax_{suffix}.csv"
+    )
+
     missing = []
 
-    if not ec_path.is_file():
-        missing.append(
-            ec_path
-        )
-
-    if not m_path.is_file():
-        missing.append(
-            m_path
-        )
+    for path in (ec_sym_path, m_path, d_path):
+        if not path.is_file():
+            missing.append(path)
 
     if missing:
         raise FileNotFoundError(
@@ -328,16 +384,13 @@ def load_pair(
             )
         )
 
-    df_ec = pd.read_csv(
-        ec_path
-    )
+    df_ec_sym = pd.read_csv(ec_sym_path)
+    df_m = pd.read_csv(m_path)
+    df_d = pd.read_csv(d_path)
 
-    df_m = pd.read_csv(
-        m_path
-    )
-
+    # Keep existing metadata identifiers used by the pipeline.
     validate_metadata(
-        df_ec,
+        df_ec_sym,
         lattice_type,
         representation,
         "ec",
@@ -350,9 +403,17 @@ def load_pair(
         "m",
     )
 
+    validate_metadata(
+        df_d,
+        lattice_type,
+        representation,
+        "d",
+    )
+
     return (
-        df_ec,
+        df_ec_sym,
         df_m,
+        df_d,
     )
 
 
@@ -361,7 +422,7 @@ def main():
         description=(
             "Plot stability of fitted Tc and nu "
             "against the minimum lattice size "
-            "for one lattice/representation combination."
+            "for ec_sym, m, and d observables."
         )
     )
 
@@ -432,10 +493,8 @@ def main():
             f"{input_dir}"
         )
 
-    args.output_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    variant_output_dir = args.output_dir / lattice_type / representation
+    variant_output_dir.mkdir(parents=True, exist_ok=True)
 
     tc_theory, theory_label = get_theory(
         lattice_type
@@ -456,52 +515,46 @@ def main():
         f"{input_dir}"
     )
 
-    df_ec_max, df_m_max = load_pair(
+    df_ec_sym_max, df_m_max, df_d_max = load_triplet(
         input_dir,
         "max",
         lattice_type,
         representation,
     )
 
-    df_ec_second, df_m_second = load_pair(
+    df_ec_sym_second, df_m_second, df_d_second = load_triplet(
         input_dir,
         "second",
         lattice_type,
         representation,
     )
 
-    L_max_ec = int(
-        df_ec_max["L_max"].iloc[0]
-    )
+    L_max_values = {
+        int(df_ec_sym_max["L_max"].iloc[0]),
+        int(df_m_max["L_max"].iloc[0]),
+        int(df_d_max["L_max"].iloc[0]),
+    }
 
-    L_max_m = int(
-        df_m_max["L_max"].iloc[0]
-    )
-
-    if L_max_ec != L_max_m:
+    if len(L_max_values) != 1:
         raise ValueError(
-            f"EC and M have different L_max values "
-            f"for the max scan: "
-            f"{L_max_ec} vs {L_max_m}"
+            "ec_sym, m, and d have different L_max values "
+            f"for the max scan: {sorted(L_max_values)}"
         )
 
-    L_second_ec = int(
-        df_ec_second["L_max"].iloc[0]
-    )
+    L_second_values = {
+        int(df_ec_sym_second["L_max"].iloc[0]),
+        int(df_m_second["L_max"].iloc[0]),
+        int(df_d_second["L_max"].iloc[0]),
+    }
 
-    L_second_m = int(
-        df_m_second["L_max"].iloc[0]
-    )
-
-    if L_second_ec != L_second_m:
+    if len(L_second_values) != 1:
         raise ValueError(
-            f"EC and M have different L_max values "
-            f"for the second scan: "
-            f"{L_second_ec} vs {L_second_m}"
+            "ec_sym, m, and d have different L_max values "
+            f"for the second scan: {sorted(L_second_values)}"
         )
 
-    L_max = L_max_ec
-    L_second = L_second_ec
+    L_max = next(iter(L_max_values))
+    L_second = next(iter(L_second_values))
 
     lattice_label = (
         "Square"
@@ -509,15 +562,8 @@ def main():
         else "Triangular"
     )
 
-    representation_label = (
-        "spin as cell"
-        if representation == "cell"
-        else "spin as vertex"
-    )
-
     base_title = (
-        f"{lattice_label} lattice, "
-        f"{representation_label}"
+        f"{lattice_label} / {representation}"
     )
 
     prefix = (
@@ -526,46 +572,46 @@ def main():
     )
 
     plot_tc(
-        df_ec_max,
+        df_ec_sym_max,
         df_m_max,
-        args.output_dir
+        df_d_max,
+        variant_output_dir
         / f"Tc_vs_Lmin_{prefix}_Lmax_max.png",
-        rf"{base_title}: fitted $T_c$ vs $L_{{\min}}$, "
-        rf"$L_{{\max}}={L_max}$",
+        rf"{base_title}: $T_c$ vs $L_{{\min}}$ ($L_{{\max}}={L_max}$)",
         tc_theory,
         args.jitter_factor,
         theory_label,
     )
 
     plot_tc(
-        df_ec_second,
+        df_ec_sym_second,
         df_m_second,
-        args.output_dir
+        df_d_second,
+        variant_output_dir
         / f"Tc_vs_Lmin_{prefix}_Lmax_second.png",
-        rf"{base_title}: fitted $T_c$ vs $L_{{\min}}$, "
-        rf"$L_{{\max}}={L_second}$",
+        rf"{base_title}: $T_c$ vs $L_{{\min}}$ ($L_{{\max}}={L_second}$)",
         tc_theory,
         args.jitter_factor,
         theory_label,
     )
 
     plot_nu(
-        df_ec_max,
+        df_ec_sym_max,
         df_m_max,
-        args.output_dir
+        df_d_max,
+        variant_output_dir
         / f"nu_vs_Lmin_{prefix}_Lmax_max.png",
-        rf"{base_title}: fitted $\nu$ vs $L_{{\min}}$, "
-        rf"$L_{{\max}}={L_max}$",
+        rf"{base_title}: $\nu$ vs $L_{{\min}}$ ($L_{{\max}}={L_max}$)",
         args.jitter_factor,
     )
 
     plot_nu(
-        df_ec_second,
+        df_ec_sym_second,
         df_m_second,
-        args.output_dir
+        df_d_second,
+        variant_output_dir
         / f"nu_vs_Lmin_{prefix}_Lmax_second.png",
-        rf"{base_title}: fitted $\nu$ vs $L_{{\min}}$, "
-        rf"$L_{{\max}}={L_second}$",
+        rf"{base_title}: $\nu$ vs $L_{{\min}}$ ($L_{{\max}}={L_second}$)",
         args.jitter_factor,
     )
 

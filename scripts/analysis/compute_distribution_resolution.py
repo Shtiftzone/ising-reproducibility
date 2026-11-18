@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from scipy.stats import skew, kurtosis, ks_2samp
+from scipy.stats import skew, kurtosis
 
 
 DEFAULT_SIZES = [
@@ -15,15 +15,15 @@ DEFAULT_SIZES = [
 
 
 def read_first_column(path: Path) -> np.ndarray:
-    data = np.loadtxt(path, delimiter=",")
-
-    if data.ndim == 1:
-        return data.astype(float)
+    data = np.loadtxt(path, delimiter=",", ndmin=2)
 
     return data[:, 0].astype(float)
 
 
-def load_observables(size_dir: Path):
+def load_observables(
+    size_dir: Path,
+    lattice_type: str,
+):
     me_path = size_dir / "mefile.txt"
     ep_path = size_dir / "epfile.txt"
     en_path = size_dir / "enfile.txt"
@@ -36,34 +36,40 @@ def load_observables(size_dir: Path):
     EP = read_first_column(ep_path)
     EN = read_first_column(en_path)
 
-    n = min(len(M), len(EP), len(EN))
+    if not (len(M) == len(EP) == len(EN)):
+        raise ValueError(
+            f"Mismatched sample counts in {size_dir}: "
+            f"M={len(M)}, EP={len(EP)}, EN={len(EN)}"
+        )
 
-    if n == 0:
-        raise ValueError(f"No samples found in {size_dir}")
-
-    M = M[:n]
-    EP = EP[:n]
-    EN = EN[:n]
+    if len(M) == 0:
+        raise ValueError(
+            f"No samples found in {size_dir}"
+        )
 
     EC_sym = (EN - EP) / 2.0
 
-    return M, EC_sym
+    if lattice_type == "square":
+        # M = -2 EC_sym + D
+        # D = F_0^{+4} - F_0^{-4}
+        D = M + 2.0 * EC_sym
+
+    elif lattice_type == "triangular":
+        # M = -EC_sym + D
+        # D = 1/2 (F_2^+ - F_2^-)
+        D = M + EC_sym
+
+    else:
+        raise ValueError(
+            f"Unknown lattice type: {lattice_type}"
+        )
+
+    return M, EC_sym, D
 
 
-def standardize(values: np.ndarray) -> np.ndarray:
-    values = np.asarray(values, dtype=float)
-
-    std = np.std(values, ddof=1)
-
-    if not np.isfinite(std) or std == 0.0:
-        return np.full(values.shape, np.nan, dtype=float)
-
-    return (
-        values - np.mean(values)
-    ) / std
-
-
-def entropy_effective_values(values: np.ndarray):
+def entropy_effective_values(
+    values: np.ndarray,
+):
     values = np.asarray(values)
 
     unique_values, counts = np.unique(
@@ -71,10 +77,13 @@ def entropy_effective_values(values: np.ndarray):
         return_counts=True,
     )
 
-    probabilities = counts / counts.sum()
+    probabilities = (
+        counts / counts.sum()
+    )
 
     entropy = -np.sum(
-        probabilities * np.log(probabilities)
+        probabilities
+        * np.log(probabilities)
     )
 
     k_eff = np.exp(entropy)
@@ -89,8 +98,10 @@ def entropy_effective_values(values: np.ndarray):
 def main():
     parser = argparse.ArgumentParser(
         description=(
-            "Compare magnetization and symmetrized Euler-characteristic "
-            "distributions at a selected temperature."
+            "Compare magnetization, symmetrized "
+            "Euler-characteristic, and local "
+            "domain-imbalance distributions "
+            "at a selected temperature."
         )
     )
 
@@ -98,18 +109,26 @@ def main():
         "--results-dir",
         type=Path,
         required=True,
-        help="Raw simulation results directory.",
+        help=(
+            "Raw simulation results directory."
+        ),
     )
 
     parser.add_argument(
         "--lattice-type",
-        choices=["square", "triangular"],
+        choices=[
+            "square",
+            "triangular",
+        ],
         required=True,
     )
 
     parser.add_argument(
         "--representation",
-        choices=["cell", "vertex"],
+        choices=[
+            "cell",
+            "vertex",
+        ],
         required=True,
     )
 
@@ -118,15 +137,17 @@ def main():
         type=float,
         required=True,
         help=(
-            "Temperature whose raw simulation distributions "
-            "are analyzed."
+            "Temperature whose raw simulation "
+            "distributions are analyzed."
         ),
     )
 
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("data/analysis_csv"),
+        default=Path(
+            "data/analysis_csv"
+        ),
     )
 
     parser.add_argument(
@@ -145,8 +166,8 @@ def main():
 
     if not temperature_dir.is_dir():
         raise FileNotFoundError(
-            f"Temperature directory does not exist: "
-            f"{temperature_dir}"
+            "Temperature directory does "
+            f"not exist: {temperature_dir}"
         )
 
     output_dir = (
@@ -178,99 +199,206 @@ def main():
             continue
 
         try:
-            M, EC_sym = load_observables(size_dir)
+            M, EC_sym, D = (
+                load_observables(
+                    size_dir,
+                    args.lattice_type,
+                )
+            )
+
         except FileNotFoundError as exc:
             print(
                 f"Skipping L={L}: "
-                f"missing {exc.filename}"
+                f"missing {exc}"
             )
             continue
 
-        Z_M = standardize(M)
-        Z_EC = standardize(EC_sym)
-
-        Z_M = Z_M[np.isfinite(Z_M)]
-        Z_EC = Z_EC[np.isfinite(Z_EC)]
-
-        if len(Z_M) == 0 or len(Z_EC) == 0:
-            print(
-                f"Skipping L={L}: "
-                "standardized distribution is empty"
-            )
-            continue
-
-        ks_result = ks_2samp(
-            Z_M,
-            Z_EC,
-        )
+        # --------------------------------------------------
+        # Distribution-shape statistics
+        # --------------------------------------------------
 
         shape_records.append({
-            "lattice_type": args.lattice_type,
-            "representation": args.representation,
-            "temperature": args.temperature,
-            "L": L,
-            "n_samples": len(M),
+            "lattice_type":
+                args.lattice_type,
 
-            "M_mean": float(np.mean(M)),
-            "M_std": float(np.std(M, ddof=1)),
-            "M_skewness": float(
-                skew(M, bias=False)
-            ),
-            "M_excess_kurtosis": float(
-                kurtosis(
-                    M,
-                    fisher=True,
-                    bias=False,
-                )
-            ),
+            "representation":
+                args.representation,
 
-            "EC_mean": float(np.mean(EC_sym)),
-            "EC_std": float(
-                np.std(EC_sym, ddof=1)
-            ),
-            "EC_skewness": float(
-                skew(EC_sym, bias=False)
-            ),
-            "EC_excess_kurtosis": float(
-                kurtosis(
-                    EC_sym,
-                    fisher=True,
-                    bias=False,
-                )
-            ),
+            "temperature":
+                args.temperature,
 
-            "KS_statistic_standardized":
-                float(ks_result.statistic),
+            "L":
+                L,
 
-            "KS_pvalue_standardized":
-                float(ks_result.pvalue),
+            "n_samples":
+                len(M),
+
+            # Magnetization
+            "M_mean":
+                float(np.mean(M)),
+
+            "M_std":
+                float(
+                    np.std(
+                        M,
+                        ddof=1,
+                    )
+                ),
+
+            "M_skewness":
+                float(
+                    skew(
+                        M,
+                        bias=False,
+                    )
+                ),
+
+            "M_excess_kurtosis":
+                float(
+                    kurtosis(
+                        M,
+                        fisher=True,
+                        bias=False,
+                    )
+                ),
+
+            # Symmetrized EC
+            "EC_mean":
+                float(
+                    np.mean(EC_sym)
+                ),
+
+            "EC_std":
+                float(
+                    np.std(
+                        EC_sym,
+                        ddof=1,
+                    )
+                ),
+
+            "EC_skewness":
+                float(
+                    skew(
+                        EC_sym,
+                        bias=False,
+                    )
+                ),
+
+            "EC_excess_kurtosis":
+                float(
+                    kurtosis(
+                        EC_sym,
+                        fisher=True,
+                        bias=False,
+                    )
+                ),
+
+            # Domain imbalance D
+            "D_mean":
+                float(
+                    np.mean(D)
+                ),
+
+            "D_std":
+                float(
+                    np.std(
+                        D,
+                        ddof=1,
+                    )
+                ),
+
+            "D_skewness":
+                float(
+                    skew(
+                        D,
+                        bias=False,
+                    )
+                ),
+
+            "D_excess_kurtosis":
+                float(
+                    kurtosis(
+                        D,
+                        fisher=True,
+                        bias=False,
+                    )
+                ),
+
         })
+
+        # --------------------------------------------------
+        # Entropy / effective resolution
+        # --------------------------------------------------
 
         K_M, H_M, Keff_M = (
             entropy_effective_values(M)
         )
 
         K_EC, H_EC, Keff_EC = (
-            entropy_effective_values(EC_sym)
+            entropy_effective_values(
+                EC_sym
+            )
+        )
+
+        K_D, H_D, Keff_D = (
+            entropy_effective_values(D)
         )
 
         entropy_records.append({
-            "lattice_type": args.lattice_type,
-            "representation": args.representation,
-            "temperature": args.temperature,
-            "L": L,
-            "n_samples": len(M),
+            "lattice_type":
+                args.lattice_type,
 
-            "M_unique": K_M,
-            "M_entropy": H_M,
-            "M_Keff": Keff_M,
+            "representation":
+                args.representation,
 
-            "EC_unique": K_EC,
-            "EC_entropy": H_EC,
-            "EC_Keff": Keff_EC,
+            "temperature":
+                args.temperature,
 
+            "L":
+                L,
+
+            "n_samples":
+                len(M),
+
+            # Magnetization
+            "M_unique":
+                K_M,
+
+            "M_entropy":
+                H_M,
+
+            "M_Keff":
+                Keff_M,
+
+            # Symmetrized EC
+            "EC_unique":
+                K_EC,
+
+            "EC_entropy":
+                H_EC,
+
+            "EC_Keff":
+                Keff_EC,
+
+            # Domain imbalance D
+            "D_unique":
+                K_D,
+
+            "D_entropy":
+                H_D,
+
+            "D_Keff":
+                Keff_D,
+
+            # Ratios relative to M
             "unique_ratio_EC_over_M": (
                 K_EC / K_M
+                if K_M > 0
+                else np.nan
+            ),
+
+            "unique_ratio_D_over_M": (
+                K_D / K_M
                 if K_M > 0
                 else np.nan
             ),
@@ -281,6 +409,13 @@ def main():
                 else np.nan
             ),
 
+            "Keff_ratio_D_over_M": (
+                Keff_D / Keff_M
+                if Keff_M > 0
+                else np.nan
+            ),
+
+            # Unique-value fractions
             "M_unique_fraction": (
                 K_M / len(M)
             ),
@@ -289,23 +424,35 @@ def main():
                 K_EC / len(EC_sym)
             ),
 
+            "D_unique_fraction": (
+                K_D / len(D)
+            ),
+
+            # Effective-resolution fractions
             "M_Keff_fraction": (
                 Keff_M / len(M)
             ),
 
             "EC_Keff_fraction": (
-                Keff_EC / len(EC_sym)
+                Keff_EC
+                / len(EC_sym)
+            ),
+
+            "D_Keff_fraction": (
+                Keff_D / len(D)
             ),
         })
 
     if not shape_records:
         raise RuntimeError(
-            "No distribution-shape results were produced."
+            "No distribution-shape "
+            "results were produced."
         )
 
     if not entropy_records:
         raise RuntimeError(
-            "No entropy-resolution results were produced."
+            "No entropy-resolution "
+            "results were produced."
         )
 
     df_shape = (
@@ -322,7 +469,7 @@ def main():
 
     shape_path = (
         output_dir
-        / "distribution_shape_tests.csv"
+        / "distribution_shape.csv"
     )
 
     entropy_path = (
@@ -342,10 +489,36 @@ def main():
         float_format="%.10g",
     )
 
-    print(f"Lattice type: {args.lattice_type}")
-    print(f"Representation: {args.representation}")
-    print(f"Wrote {shape_path}")
-    print(f"Wrote {entropy_path}")
+    print(
+        f"Lattice type: "
+        f"{args.lattice_type}"
+    )
+
+    print(
+        f"Representation: "
+        f"{args.representation}"
+    )
+
+    if args.lattice_type == "square":
+        print(
+            "D definition: "
+            "D = M + 2 EC_sym"
+        )
+
+    elif args.lattice_type == "triangular":
+        print(
+            "D definition: "
+            "D = M + EC_sym"
+        )
+
+    print(
+        f"Wrote {shape_path}"
+    )
+
+    print(
+        f"Wrote {entropy_path}"
+    )
+
     print("Done.")
 
 

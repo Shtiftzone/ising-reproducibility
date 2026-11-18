@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 
 import argparse
@@ -13,13 +14,14 @@ DEFAULT_LMIN = {
     "square": {
         "ec": 64,
         "m": 64,
+        "d": 64,
     },
     "triangular": {
-        "ec": 128,
-        "m": 96,
+        "ec": 96,
+        "m": 64,
+        "d": 64,
     },
 }
-
 
 def tc_scaling(L, Tc_inf, A, nu):
     return Tc_inf + A * L ** (-1.0 / nu)
@@ -30,7 +32,6 @@ def fixed_lmax_scan(
     L_max,
     L_min_start,
     min_points=6,
-    use_aicc=True,
 ):
     required = {
         "lattice_type",
@@ -147,6 +148,7 @@ def fixed_lmax_scan(
             continue
 
         Tc_inf, A, nu = popt
+
         dTc_inf, dA, dnu = np.sqrt(
             np.diag(pcov)
         )
@@ -170,21 +172,10 @@ def fixed_lmax_scan(
         )
 
         p_value = (
-            1.0 - chi2_dist.cdf(
-                chi2,
-                dof,
-            )
+            chi2_dist.sf(chi2, dof)
             if dof > 0
             else np.nan
         )
-
-        aic = chi2 + 2 * k
-
-        if use_aicc and n > k + 1:
-            aic += (
-                2 * k * (k + 1)
-                / (n - k - 1)
-            )
 
         rec = {
             "lattice_type": lattice_type,
@@ -203,7 +194,6 @@ def fixed_lmax_scan(
             "dof": int(dof),
             "chi2_red": float(chi2_red),
             "p_value": float(p_value),
-            "AIC": float(aic),
         }
 
         if prev is None:
@@ -237,11 +227,6 @@ def fixed_lmax_scan(
         )
 
     out = pd.DataFrame(records)
-
-    out["delta_AIC"] = (
-        out["AIC"]
-        - out["AIC"].min()
-    )
 
     return (
         out
@@ -298,12 +283,6 @@ def main():
         default=6,
     )
 
-    parser.add_argument(
-        "--aic",
-        action="store_true",
-        help="Use AIC instead of AICc.",
-    )
-
     args = parser.parse_args()
 
     input_dir = (
@@ -324,40 +303,31 @@ def main():
         exist_ok=True,
     )
 
-    ec_path = (
-        input_dir
-        / "pseudocritical_ec.csv"
-    )
+    input_paths = {
+        "ec": input_dir / "pseudocritical_ec.csv",
+        "m": input_dir / "pseudocritical_m.csv",
+        "d": (
+            input_dir / "pseudocritical_d.csv"
+        ),
+    }
 
-    m_path = (
-        input_dir
-        / "pseudocritical_m.csv"
-    )
+    for path in input_paths.values():
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"Missing input file: {path}"
+            )
 
-    if not ec_path.is_file():
-        raise FileNotFoundError(
-            f"Missing input file: {ec_path}"
-        )
-
-    if not m_path.is_file():
-        raise FileNotFoundError(
-            f"Missing input file: {m_path}"
-        )
-
-    df_ec = pd.read_csv(
-        ec_path
-    )
-
-    df_m = pd.read_csv(
-        m_path
-    )
+    dataframes = {
+        variant: pd.read_csv(path)
+        for variant, path in input_paths.items()
+    }
 
     common_sizes = sorted(
-        set(
-            df_ec["L"].astype(int)
-        )
-        & set(
-            df_m["L"].astype(int)
+        set.intersection(
+            *(
+                set(df["L"].astype(int))
+                for df in dataframes.values()
+            )
         )
     )
 
@@ -390,22 +360,14 @@ def main():
     )
 
     print(
-        "Information criterion: "
-        + (
-            "AIC"
-            if args.aic
-            else "AICc"
-        )
+        "Goodness-of-fit: chi-square p-value"
     )
 
     for label, current_Lmax in [
         ("max", L_max),
         ("second", L_second),
     ]:
-        for variant, df in [
-            ("ec", df_ec),
-            ("m", df_m),
-        ]:
+        for variant, df in dataframes.items():
             L_min_start = DEFAULT_LMIN[
                 args.lattice_type
             ][
@@ -426,7 +388,6 @@ def main():
                 L_max=current_Lmax,
                 L_min_start=L_min_start,
                 min_points=args.min_points,
-                use_aicc=not args.aic,
             )
 
             output_path = (

@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 
 import argparse
@@ -12,36 +13,35 @@ DEFAULT_SIZES = [
     512, 768, 1024, 1536, 2048, 3072,
 ]
 
+DEFAULT_OUTPUT_DIR = Path(
+    "/data/home/mpx641/ising-reproducibility/data/analysis_csv"
+)
 
-def get_column_index(variant: str) -> int:
-    if variant == "ec":
-        return 4
-    if variant == "m":
-        return 6
-
-    raise ValueError("variant must be 'ec' or 'm'")
+COLUMN_INDEX = {
+    "ec": 4,
+    "m": 6,
+    "d": 8,
+}
 
 
 def extract_pseudocritical_observables(
     sizes,
-    input_dir: Path,
-    lattice_type: str,
-    representation: str,
-    variant: str,
+    input_dir,
+    lattice_type,
+    representation,
+    variant,
 ):
     """
-    Extract bootstrap pseudocritical temperatures and peak susceptibilities.
+    Extract bootstrap pseudocritical temperatures and peak
+    susceptibilities.
 
-    For each lattice size L and bootstrap sample b,
+    Tc_b(L)    = argmax_T chi_b(T, L)
+    chi_c_b(L) = max_T chi_b(T, L)
 
-        Tc_b(L)    = argmax_T chi_b(T, L)
-        chi_c_b(L) = max_T    chi_b(T, L)
-
-    The reported uncertainties are the bootstrap standard deviations
-    of Tc_b(L) and chi_c_b(L).
+    Bootstrap IDs are preserved for paired analysis.
     """
 
-    col_idx = get_column_index(variant)
+    col_idx = COLUMN_INDEX[variant]
 
     bootstrap_records = []
     summary_records = []
@@ -61,8 +61,7 @@ def extract_pseudocritical_observables(
         if data.shape[1] <= col_idx:
             raise ValueError(
                 f"{file_path} has {data.shape[1]} columns, "
-                f"but variant '{variant}' requires NumPy "
-                f"column index {col_idx}"
+                f"but {variant} requires column {col_idx}"
             )
 
         df = pd.DataFrame({
@@ -103,7 +102,7 @@ def extract_pseudocritical_observables(
         chi_c_values = np.asarray(chi_c_values, dtype=float)
 
         if tc_values.size == 0:
-            print(f"Skipping L={L}: no bootstrap maxima found")
+            print(f"Skipping L={L}: no bootstrap maxima")
             continue
 
         summary_records.append({
@@ -128,8 +127,7 @@ def extract_pseudocritical_observables(
 
     if not summary_records:
         raise RuntimeError(
-            f"No pseudocritical observables could be extracted "
-            f"from {input_dir}"
+            f"No pseudocritical observables found in {input_dir}"
         )
 
     bootstrap_df = (
@@ -157,8 +155,8 @@ def run_variant(
 ):
     print()
     print(
-        f"Extracting pseudocritical observables: "
-        f"{lattice_type}, {representation}, {variant}"
+        f"Extracting: {lattice_type}, "
+        f"{representation}, {variant}"
     )
 
     bootstrap_df, summary_df = extract_pseudocritical_observables(
@@ -170,13 +168,11 @@ def run_variant(
     )
 
     bootstrap_path = (
-        output_dir
-        / f"pseudocritical_bootstrap_{variant}.csv"
+        output_dir / f"pseudocritical_bootstrap_{variant}.csv"
     )
 
     summary_path = (
-        output_dir
-        / f"pseudocritical_{variant}.csv"
+        output_dir / f"pseudocritical_{variant}.csv"
     )
 
     bootstrap_df.to_csv(
@@ -214,25 +210,18 @@ def main():
         "--lattice-type",
         choices=["square", "triangular"],
         required=True,
-        help="Underlying Ising interaction lattice.",
     )
 
     parser.add_argument(
         "--representation",
         choices=["cell", "vertex"],
         required=True,
-        help="Topological representation of each spin.",
     )
 
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("data/analysis_csv"),
-        help=(
-            "Base output directory. Lattice- and "
-            "representation-specific subdirectories are "
-            "created automatically."
-        ),
+        default=DEFAULT_OUTPUT_DIR,
     )
 
     parser.add_argument(
@@ -255,33 +244,22 @@ def main():
         / args.representation
     )
 
-    output_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Lattice type: {args.lattice_type}")
     print(f"Representation: {args.representation}")
     print(f"Input directory: {args.input_dir}")
     print(f"Output directory: {output_dir}")
 
-    run_variant(
-        args.sizes,
-        args.input_dir,
-        output_dir,
-        args.lattice_type,
-        args.representation,
-        "ec",
-    )
-
-    run_variant(
-        args.sizes,
-        args.input_dir,
-        output_dir,
-        args.lattice_type,
-        args.representation,
-        "m",
-    )
+    for variant in ("ec", "m", "d"):
+        run_variant(
+            args.sizes,
+            args.input_dir,
+            output_dir,
+            args.lattice_type,
+            args.representation,
+            variant,
+        )
 
     print()
     print("Done.")

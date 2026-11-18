@@ -4,6 +4,8 @@ import argparse
 import math
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import MultipleLocator, ScalarFormatter
@@ -19,7 +21,7 @@ PLOTS = {
     "energy_vs_T.csv": {
         "output": "energy_vs_T.png",
         "title": "Energy vs Temperature",
-        "ylabel": r"$\langle E \rangle$",
+        "ylabel": r"$\langle H \rangle$",
         "tick_group": "energy_like",
     },
     "euler_sym_vs_T.csv": {
@@ -73,7 +75,7 @@ def format_y_axis(
         integer labels after scientific scaling,
         e.g. 0, 1, 2, 3 x 10^5.
 
-    E and EC_avg:
+    H and EC_avg:
         one decimal place after scientific scaling,
         e.g. -1.8, -1.6, -1.4 x 10^7.
 
@@ -266,15 +268,17 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "--size",
+        type=int,
+        default=3072,
+        help="Lattice size L to plot (default: 3072).",
+    )
+
+    parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path(
-            "data/figure_csv"
-        ),
-        help=(
-            "Base directory containing "
-            "figure-level CSV files."
-        ),
+        default=Path("data/analysis_csv"),
+        help="Base directory containing analysis CSV files.",
     )
 
     parser.add_argument(
@@ -289,11 +293,15 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+    if args.size <= 0:
+        parser.error("--size must be a positive integer")
 
     variant_input_dir = (
         args.input_dir
         / args.lattice_type
         / args.representation
+        / "observables_vs_temperature"
+        / f"size_{args.size}"
     )
 
     if not variant_input_dir.is_dir():
@@ -306,6 +314,8 @@ def main() -> None:
         args.output_dir
         / args.lattice_type
         / args.representation
+        / "observables_vs_temperature"
+        / f"size_{args.size}"
     )
 
     variant_output_dir.mkdir(
@@ -319,6 +329,7 @@ def main() -> None:
         else "Tri."
     )
 
+    written = 0
     for csv_name, config in PLOTS.items():
         csv_path = (
             variant_input_dir
@@ -349,8 +360,13 @@ def main() -> None:
             ylabel=config["ylabel"],
             tick_group=config["tick_group"],
         )
+        written += 1
 
-    print("Done.")
+    if written == 0:
+        raise FileNotFoundError(
+            f"No observable CSV files found in {variant_input_dir}"
+        )
+    print(f"Done. Generated {written} plots for L={args.size}.")
 
 
 if __name__ == "__main__":
