@@ -114,10 +114,10 @@ struct Series {
 
 int main(int argc, char** argv) {
     try {
-        if (argc != 9 && argc != 10) {
+        if (argc != 11) {
             cerr << "Usage: " << argv[0]
                  << " temperatures_file L dimension results_file T_min T_max n_points"
-                    " output_file [input_data_dir]\n";
+                    " output_file input_data_dir lattice_type\n";
             return 1;
         }
         const int L = stoi(argv[2]);
@@ -133,7 +133,13 @@ int main(int argc, char** argv) {
             !(Tmin > 0.0 && Tmax > Tmin))
             throw runtime_error("Require L>0, dimension=2, n_points>=2, 0<T_min<T_max");
         const double vol = pow(static_cast<double>(L), dim);
-        const string base = argc == 10 ? argv[9] : "data/eul2d";
+        const string base = argv[9];
+        const string lattice_type = argv[10];
+        
+        if (lattice_type != "square" && lattice_type != "triangular")
+            throw runtime_error("lattice_type must be square or triangular");
+
+        const double d_factor = (lattice_type == "square") ? 2.0 : 1.0;
         ifstream input(argv[1]);
         if (!input) throw runtime_error(string("Cannot open temperatures file: ") + argv[1]);
         ofstream outf(argv[4]), outf0(argv[8]);
@@ -157,10 +163,11 @@ int main(int argc, char** argv) {
             double M, E, chip, chin, f0p, f1p, f2p, f0n, f1n, f2n;
             while (in >> M >> E >> chip >> chin >> f0p >> f1p >> f2p
                       >> f0n >> f1n >> f2n) {
-                // ec_sym = (chi_plus - chi_minus)/2 and d = M + 2*ec_sym.
-                // Store absolute observables per lattice site.
-                const double q = (chip - chin) / 2.0;
-                const double d = M + 2.0*q;
+                      // ec_sym = (chi_plus - chi_minus) / 2.
+                      // d = M + 2*ec_sym (square) or M + ec_sym (triangular).
+                      // Store absolute observables per lattice site.
+                      const double q = (chip - chin) / 2.0;
+                      const double d = M + d_factor * q;
                 s.E.push_back(E);
                 s.ec.push_back(abs(q) / vol);
                 s.mag.push_back(abs(M) / vol);

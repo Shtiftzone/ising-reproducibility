@@ -139,8 +139,8 @@ for GRID_SIZE in "${SIZES[@]}"; do
         "$TMAX" \
         "$POINTS" \
         "$OUTPUT_FILE" \
-        "$INPUT_DATA_DIR"
-
+        "$INPUT_DATA_DIR" \
+        "$LATTICE_TYPE"
     echo
 done
 

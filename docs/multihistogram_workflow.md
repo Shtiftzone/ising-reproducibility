@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes how to prepare simulation measurements and run multihistogram reweighting for the two-dimensional Ising model. The workflow supports square and triangular lattices, each with `cell` and `vertex` representations. The combinations analyzed in the associated publication are:
+This document describes how to prepare simulation measurements and run multihistogram reweighting for the two-dimensional Ising model. The workflow supports square and triangular lattices, each with `cell` and `vertex` representations. The lattice/representation combinations analyzed in the associated publication are:
 
 - `square/cell`
 - `triangular/vertex`
@@ -187,7 +187,13 @@ bash scripts/multihistogram/run_multihistogram_all.sh \
     triangular vertex src/multihistogram
 ```
 
-The runner determines input and output locations from the lattice and representation:
+The runner determines input and output locations from the lattice and representation. It also passes `lattice_type` (`square` or `triangular`) to the `Rw` executable as its final command-line argument:
+
+```text
+Rw temperatures_file L dimension results_file T_min T_max n_points output_file input_data_dir lattice_type
+```
+
+Both `input_data_dir` and `lattice_type` are required by the updated executable. The runner supplies these arguments automatically; users invoking `Rw` directly must supply them explicitly.
 
 ```text
 Temperature files:
@@ -267,17 +273,18 @@ bash scripts/multihistogram/run_multihistogram_all.sh \
 
 The bootstrap seed is separate from the seed file used by the Monte Carlo simulation programs. The `AutoCorr` estimates are expressed in intervals between **saved measurements**, not individual Metropolis or Wolff updates. The bootstrap executable does not enforce a minimum number of nonoverlapping blocks; separate diagnostic scripts can assess the feasibility and sensitivity of block-size choices.
 
-### Current implementation note concerning `d`
+### Lattice-dependent definition of `d`
 
-In the present `src/multihistogram/main.cpp`, the executable calculates:
+The current shared executable takes `lattice_type` as a required command-line argument and uses
 
 ```text
 EC_sym = (chi_plus - chi_minus) / 2
 
-d = M + 2 * EC_sym
+d = M + 2 * EC_sym    (square)
+d = M + EC_sym        (triangular)
 ```
 
-This expression is applied for both lattice types by the current executable. Some diagnostic scripts instead use `d = M + EC_sym` for the triangular lattice. **This discrepancy must be checked against the intended observable definition before treating those analyses as equivalent.** This document describes the executable as currently implemented; it does not resolve that scientific consistency question.
+In `main.cpp`, the coefficient is selected from the supplied lattice type before the input measurements are processed. The observable passed to reweighting is `|d| / L^2`. This agrees with the lattice-dependent formula used in the autocorrelation and cross-stream diagnostic scripts. The symmetrized Euler characteristic and magnetization observables are treated in the same way for both lattice types.
 
 ## 4. Output files and post-processing
 

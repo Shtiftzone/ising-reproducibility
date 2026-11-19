@@ -70,7 +70,7 @@ It calculates the temperature dependence of:
 - Mean absolute symmetrized Euler characteristic, `<|EC_sym|>`.
 - Mean averaged Euler characteristic, `<EC_avg>`.
 
-Here `EC_sym = (EC_minus - EC_plus)/2` and `EC_avg = (EC_minus + EC_plus)/2`. The sign convention for `EC_sym` does not affect its absolute value.
+Here `EC_sym = (EC_plus - EC_minus)/2` and `EC_avg = (EC_plus + EC_minus)/2`. The sign convention for `EC_sym` does not affect its absolute value.
 
 ### Statistical uncertainties
 
@@ -274,7 +274,7 @@ The subleading correction fit is not part of the triangular-lattice workflow use
 For a selected **measured** temperature, the script reads aligned raw measurements of `M`, `EC_plus`, and `EC_minus` from `mefile.txt`, `epfile.txt`, and `enfile.txt`, respectively. It constructs
 
 $$
-EC_{\mathrm{sym}} = \frac{EC_{\mathrm{minus}} - EC_{\mathrm{plus}}}{2},
+EC_{\mathrm{sym}} = \frac{EC_{\mathrm{plus}} - EC_{\mathrm{minus}}}{2},
 $$
 
 and
@@ -405,7 +405,7 @@ This script estimates integrated autocorrelation times for seven recorded series
 - Absolute domain-imbalance observable `D` per spin.
 - The squares of the normalized magnetization, symmetrized Euler characteristic, and `D`.
 
-The signed observable used to construct `D` is `D = M + 2 EC_sym` on the square lattice and `D = M + EC_sym` on the triangular lattice, with `EC_sym = (EC_plus - EC_minus)/2` in these diagnostic scripts. The sign convention for `EC_sym` is relevant when combining it with `M`.
+The signed observable used to construct `D` is `D = M + 2 EC_sym` on the square lattice and `D = M + EC_sym` on the triangular lattice, with `EC_sym = (EC_plus - EC_minus)/2`, consistently with the definition used throughout this document.
 
 The script compiles a temporary C++ driver using the repository's original `src/multihistogram/Autocorr.cpp` and `Autocorr.h`. It analyzes each temperature, size, and run separately; recorded time series are not concatenated.
 

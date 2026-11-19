@@ -47,7 +47,7 @@ def load_observables(
             f"No samples found in {size_dir}"
         )
 
-    EC_sym = (EN - EP) / 2.0
+    EC_sym = (EP - EN) / 2.0
 
     if lattice_type == "square":
         # M = -2 EC_sym + D
