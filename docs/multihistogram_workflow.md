@@ -2,293 +2,363 @@
 
 ## Overview
 
-The multihistogram analysis uses configuration files prepared separately for the square and triangular lattices.
+This document describes how to prepare simulation measurements and run multihistogram reweighting for the two-dimensional Ising model. The workflow supports square and triangular lattices, each with `cell` and `vertex` representations. The combinations analyzed in the associated publication are:
 
-The input data are organized as:
+- `square/cell`
+- `triangular/vertex`
 
-```text
-data/eul2d/square/size_L/
-data/eul2d/triangular/size_L/
-```
+The workflow has four stages:
 
-where `L` is the linear lattice size of the `L x L` grid.
+1. Generate lattice-size-dependent temperature files from the tracked parameter table.
+2. Convert raw simulation measurements into the ten-column multihistogram input format.
+3. Run the C++ reweighting executable with circular moving block bootstrap resampling.
+4. Use the reweighted bootstrap results in the pseudocritical-temperature and finite-size-scaling analyses.
 
-Each `size_L` directory contains files named:
+Unless otherwise specified, run the commands below from the repository root.
 
-```text
-conf-T-IDX.dat
-```
-
-where:
-
-* `T` is the simulation temperature formatted with four decimal places
-* `IDX` is the integer index assigned to that temperature
-
-Examples:
-
-```text
-data/eul2d/square/size_64/conf-2.2200-0.dat
-data/eul2d/triangular/size_64/conf-3.6800-0.dat
-```
-
-## Building the multihistogram executable
-
-From the repository root:
+## Build the multihistogram executable
 
 ```bash
-cd src/multihistogram
-make
-cd ../..
+make -C src/multihistogram
 ```
 
-This builds the multihistogram executable:
+This builds:
 
 ```text
 src/multihistogram/Rw
 ```
 
-## Temperature files
+The Makefile uses `g++` and the C++ sources in `src/multihistogram/`, including the local autocorrelation and RANLUX implementations. See [Software requirements](software_requirements.md) for additional details.
 
-Temperature files are stored separately for the two lattice types:
+## 1. Generate temperature files
 
-```text
-data/temperatures/square/
-data/temperatures/triangular/
-```
-
-The files are named:
+The temperature windows are recorded in:
 
 ```text
-temperatures_L.txt
+data/analysis_parameters/reweighting_windows.csv
 ```
 
-Each line has the format:
+Each row specifies `lattice_type`, `L`, `T_min`, `T_max`, and `T_step`. Windows vary with lattice size. The current table uses `T_step = 0.0005` throughout; the step is read from the CSV rather than hard-coded into the generator.
+
+Generate temperature files for both lattices:
+
+```bash
+bash scripts/multihistogram/generate_square_reweighting_temperatures.sh
+bash scripts/multihistogram/generate_triangular_reweighting_temperatures.sh
+```
+
+The generated paths are:
+
+```text
+data/temperatures/square/temperatures_L.txt
+data/temperatures/triangular/temperatures_L.txt
+```
+
+Each temperature file contains two whitespace-separated columns:
 
 ```text
 T IDX
 ```
 
+For example, the square-lattice file for `L=128` begins with:
+
+```text
+2.2650 0
+2.2655 1
+2.2660 2
+```
+
+Here `IDX` is the integer identifier used in the corresponding input filename. The generators format temperatures to four decimal places.
+
+Both generation scripts accept optional positional arguments:
+
+```text
+[parameter_csv] [output_directory]
+```
+
 For example:
 
-```text
-2.2600 0
-2.2605 1
-2.2610 2
-```
-
-The reweighting temperature windows were selected manually around the relevant peak region for each lattice size.
-
-### Square lattice
-
-Square-lattice temperature files are generated with:
-
 ```bash
-bash scripts/multihistogram/generate_square_reweighting_temperatures.sh
+bash scripts/multihistogram/generate_square_reweighting_temperatures.sh \
+    data/analysis_parameters/reweighting_windows.csv \
+    data/temperatures/square
 ```
 
-The default output directory is:
+The temperature windows are analysis inputs specified by the CSV. They are not selected automatically by the generator.
 
-```text
-data/temperatures/square/
-```
+## 2. Prepare multihistogram input files
 
-### Triangular lattice
-
-Triangular-lattice temperature files are generated with:
-
-```bash
-bash scripts/multihistogram/generate_triangular_reweighting_temperatures.sh
-```
-
-The default output directory is:
-
-```text
-data/temperatures/triangular/
-```
-
-Both scripts use a temperature spacing of:
-
-```text
-0.0005
-```
-
-The temperature window itself depends on the lattice size.
-
-## Preparing multihistogram input data
-
-The same input-preparation script is used for both lattice types:
+The input-preparation script is:
 
 ```text
 scripts/multihistogram/prepare_eul2d_input.sh
 ```
 
-It takes three arguments:
+It requires four positional arguments:
 
 ```text
-1. temperature-files directory
-2. simulation-results directory
-3. output-data directory
+<lattice_type> <representation> <temperatures_dir> <simulation_results_dir>
 ```
 
-### Square lattice
+For the square-lattice cell representation:
 
 ```bash
 bash scripts/multihistogram/prepare_eul2d_input.sh \
-  data/temperatures/square \
-  results/square_simulations \
-  data/eul2d/square
+    square cell \
+    data/temperatures/square \
+    results/square_cell_simulations
 ```
 
-### Triangular lattice
+For the triangular-lattice vertex representation:
 
 ```bash
 bash scripts/multihistogram/prepare_eul2d_input.sh \
-  data/temperatures/triangular \
-  results/triangular_simulations \
-  data/eul2d/triangular
+    triangular vertex \
+    data/temperatures/triangular \
+    results/triangular_vertex_simulations
 ```
 
-The script reads simulation outputs from directories of the form:
+The same script also supports `square/vertex` and `triangular/cell`, provided corresponding simulation outputs exist.
+
+The preparation script reads raw measurements from:
 
 ```text
-results/<simulation_type>/T_TTTTT/size_L/
+<simulation_results_dir>/T_<temperature>/size_<L>/
+    mefile.txt
+    epfile.txt
+    enfile.txt
+    fpfile.txt
+    fnfile.txt
 ```
 
-For each temperature and lattice size, it combines:
+Simulation directories usually format temperatures to five decimal places. The preparation script matches them against four-decimal temperatures from `temperatures_L.txt`.
+
+For each available temperature and lattice size, it writes:
 
 ```text
-mefile.txt
-epfile.txt
-enfile.txt
-fpfile.txt
-fnfile.txt
+data/eul2d/<lattice_type>/<representation>/size_<L>/conf-<T>-<IDX>.dat
 ```
 
-The resulting files are written to:
+For example:
 
 ```text
-data/eul2d/<lattice_type>/size_L/conf-T-IDX.dat
+data/eul2d/square/cell/size_128/conf-2.2650-0.dat
+data/eul2d/triangular/vertex/size_64/conf-3.6800-0.dat
 ```
 
-## Input columns
+### Input columns
 
-Each row in `conf-T-IDX.dat` contains ten columns:
+Each `conf-<T>-<IDX>.dat` file contains ten whitespace-separated columns, with one row per recorded configuration:
 
-1. first value from `mefile.txt`
-2. second value from `mefile.txt`
-3. value from `epfile.txt`
-4. value from `enfile.txt`
-5. first value from `fpfile.txt`
-6. second value from `fpfile.txt`
-7. third value from `fpfile.txt`
-8. first value from `fnfile.txt`
-9. second value from `fnfile.txt`
-10. third value from `fnfile.txt`
+| Column | Quantity | Source |
+|---|---|---|
+| 1 | Magnetization `M` | First field of `mefile.txt` |
+| 2 | Energy `E` | Second field of `mefile.txt` |
+| 3 | Positive-spin Euler characteristic `chi_plus` | `epfile.txt` |
+| 4 | Negative-spin Euler characteristic `chi_minus` | `enfile.txt` |
+| 5-7 | Positive-spin cell counts | First three fields of `fpfile.txt` |
+| 8-10 | Negative-spin cell counts | First three fields of `fnfile.txt` |
 
-The files `bpfile.txt` and `bnfile.txt` produced by the simulations are not used in this input-preparation step.
+The files `bpfile.txt` and `bnfile.txt` are not used by this preparation step.
 
-## Running the multihistogram analysis
+The preparation script checks whether its five required input files exist and are nonempty. If their lengths differ, it uses the smallest row count and therefore truncates longer files. Missing temperature directories or measurements are skipped and reported. Review the output before reweighting: the C++ executable expects a prepared file for every temperature listed in the relevant temperature file.
 
-The same runner is used for square and triangular lattices:
+## 3. Run multihistogram reweighting
+
+The runner is:
 
 ```text
 scripts/multihistogram/run_multihistogram_all.sh
 ```
 
-It takes:
+It takes three required arguments and one optional argument:
 
 ```text
-1. multihistogram executable directory
-2. temperature-files directory
-3. prepared input-data directory
-4. output directory
-5. optional refinement factor
+<lattice_type> <representation> <mh_executable_dir> [refinement_factor]
 ```
 
-### Square lattice
+For the combinations analyzed in the publication:
 
 ```bash
 bash scripts/multihistogram/run_multihistogram_all.sh \
-  src/multihistogram \
-  data/temperatures/square \
-  data/eul2d/square \
-  results/multihistogram/square
+    square cell src/multihistogram
+
+bash scripts/multihistogram/run_multihistogram_all.sh \
+    triangular vertex src/multihistogram
 ```
 
-### Triangular lattice
+The runner determines input and output locations from the lattice and representation:
+
+```text
+Temperature files:
+    data/temperatures/<lattice_type>/temperatures_L.txt
+
+Prepared input:
+    data/eul2d/<lattice_type>/<representation>/size_L/
+
+Output:
+    results/multihistogram/<lattice_type>/<representation>/
+```
+
+It processes the supported sizes:
+
+```text
+64 96 128 192 256 384 512 768 1024 1536 2048 3072
+```
+
+A size is skipped if its temperature file or prepared input directory is missing. Once reweighting begins for a size, a missing or malformed individual configuration file causes the C++ executable to fail.
+
+### Temperature-grid refinement
+
+For each lattice size, the runner determines the number of reweighting output points as:
+
+```text
+POINTS = (N_temperatures - 1) * refinement_factor + 1
+```
+
+The default `refinement_factor` is `50`; it can be supplied as the fourth argument:
 
 ```bash
 bash scripts/multihistogram/run_multihistogram_all.sh \
-  src/multihistogram \
-  data/temperatures/triangular \
-  data/eul2d/triangular \
-  results/multihistogram/triangular
+    square cell src/multihistogram 100
 ```
 
-The `Rw` executable receives the prepared input-data directory explicitly, so the same executable can process both lattice types.
+**Important:** the C++ executable distributes reweighting points uniformly in inverse temperature, `beta = 1/T`, between `1/T_max` and `1/T_min`. Consequently, the output temperature spacing is not exactly uniform. For input spacings of `0.0005` and refinement factor `50`, the typical output temperature spacing is approximately `0.00001`.
 
-## Reweighting grid refinement
+### Circular moving block bootstrap
 
-The multihistogram runner uses a refinement factor to define the number of output temperature points.
+The current `src/multihistogram/main.cpp` uses circular moving block bootstrap resampling on the recorded configurations at each simulation temperature.
 
-By default:
+For every input time series, integrated autocorrelation times are estimated using `AutoCorr` for seven observables:
+
+- Energy `E`
+- Absolute magnetization `|M|`
+- Absolute symmetrized Euler characteristic `|EC_sym|`
+- Absolute derived observable `|d|`
+- Squares of the last three absolute observables
+
+The maximum estimated autocorrelation time determines a common block length for energy and all observables at that temperature:
 
 ```text
-POINTS = (N_temperatures - 1) * 50 + 1
+block_length = ceil(block_factor * max(0.5, tau_max))
 ```
 
-where `N_temperatures` is the number of temperatures in `temperatures_L.txt`.
+The default `block_factor` is `10`. Blocks start at uniformly sampled positions, wrap around the end of the recorded series, and are sampled with replacement until one bootstrap sample of the original length has been assembled. The final block is truncated if necessary.
 
-Each interval between consecutive input temperatures is therefore divided into 50 smaller intervals.
+The same resampled configuration indices are used for energy and all observables at a given temperature, preserving their within-configuration relationships. For a given bootstrap replicate, blocks are sampled separately for each temperature. The procedure does not itself establish statistical independence of the original simulation streams across temperatures or lattice sizes.
 
-For an input temperature spacing of:
+The default number of bootstrap replicates is `200`. The executable accepts three environment variables:
 
-```text
-0.0005
-```
+| Variable | Default | Purpose |
+|---|---|---|
+| `ISING_BLOCK_FACTOR` | `10` | Factor multiplying the maximum estimated autocorrelation time when determining block length |
+| `ISING_BOOTSTRAP_REPS` | `200` | Number of bootstrap replicates |
+| `ISING_BOOTSTRAP_SEED` | `123456` | Seed for the bootstrap random-number generator |
 
-the corresponding output spacing is approximately:
-
-```text
-0.00001
-```
-
-A different refinement factor can be passed as the fifth argument.
-
-For example:
+For an explicit run with these defaults:
 
 ```bash
+ISING_BLOCK_FACTOR=10 \
+ISING_BOOTSTRAP_REPS=200 \
+ISING_BOOTSTRAP_SEED=123456 \
 bash scripts/multihistogram/run_multihistogram_all.sh \
-  src/multihistogram \
-  data/temperatures/square \
-  data/eul2d/square \
-  results/multihistogram/square \
-  100
+    square cell src/multihistogram
 ```
 
-## Output files
+The bootstrap seed is separate from the seed file used by the Monte Carlo simulation programs. The `AutoCorr` estimates are expressed in intervals between **saved measurements**, not individual Metropolis or Wolff updates. The bootstrap executable does not enforce a minimum number of nonoverlapping blocks; separate diagnostic scripts can assess the feasibility and sensitivity of block-size choices.
 
-For each lattice size, the multihistogram runner writes:
+### Current implementation note concerning `d`
+
+In the present `src/multihistogram/main.cpp`, the executable calculates:
 
 ```text
-results_L.dat
-output2_L.dat
+EC_sym = (chi_plus - chi_minus) / 2
+
+d = M + 2 * EC_sym
 ```
 
-For example:
+This expression is applied for both lattice types by the current executable. Some diagnostic scripts instead use `d = M + EC_sym` for the triangular lattice. **This discrepancy must be checked against the intended observable definition before treating those analyses as equivalent.** This document describes the executable as currently implemented; it does not resolve that scientific consistency question.
+
+## 4. Output files and post-processing
+
+For each lattice size, the runner creates two files:
 
 ```text
-results/multihistogram/square/results_128.dat
-results/multihistogram/square/output2_128.dat
-
-results/multihistogram/triangular/results_128.dat
-results/multihistogram/triangular/output2_128.dat
+results/multihistogram/<lattice_type>/<representation>/results_L.dat
+results/multihistogram/<lattice_type>/<representation>/output2_L.dat
 ```
 
-where `L` is the lattice size.
+Examples:
 
-## Generated data
+```text
+results/multihistogram/square/cell/results_128.dat
+results/multihistogram/square/cell/output2_128.dat
 
-Prepared multihistogram input files and multihistogram outputs are generated locally and are not tracked by Git.
+results/multihistogram/triangular/vertex/results_128.dat
+results/multihistogram/triangular/vertex/output2_128.dat
+```
 
-The corresponding large datasets are distributed separately from the source-code repository.
+Both files contain whitespace-separated numeric data without a header row. Each bootstrap replicate is identified by its zero-based `rep` index.
+
+### Reweighted results: `results_L.dat`
+
+There are nine columns:
+
+| Column | Contents |
+|---|---|
+| 1 | Bootstrap replicate ID `rep` |
+| 2 | Reweighted temperature `T` |
+| 3 | Reweighted free-energy-related quantity `freeNRG` |
+| 4 | Mean of `|EC_sym| / L^2` |
+| 5 | `L^2` times its variance |
+| 6 | Mean of `|M| / L^2` |
+| 7 | `L^2` times its variance |
+| 8 | Mean of `|d| / L^2` |
+| 9 | `L^2` times its variance |
+
+In this file, the variance columns do **not** include the additional factor `beta = 1/T`. The downstream pseudocritical-temperature script divides these columns by `T` when locating the peaks of the corresponding susceptibility.
+
+### Estimates at simulated temperatures: `output2_L.dat`
+
+There are eight columns:
+
+| Column | Contents |
+|---|---|
+| 1 | Bootstrap replicate ID `rep` |
+| 2 | Original simulation temperature `T` |
+| 3 | Bootstrap mean of `|EC_sym| / L^2` |
+| 4 | `L^2` times its sample variance (using the bootstrap sample moments) |
+| 5 | Bootstrap mean of `|M| / L^2` |
+| 6 | `L^2` times its sample variance (using the bootstrap sample moments) |
+| 7 | Bootstrap mean of `|d| / L^2` |
+| 8 | `L^2` times its sample variance (using the bootstrap sample moments) |
+
+This file contains measurements evaluated at the input simulation temperatures, rather than on the refined reweighting grid.
+
+### Extract pseudocritical temperatures
+
+Once `results_L.dat` files are available, extract the bootstrap maxima for the `ec`, `m`, and `d` variants:
+
+```bash
+python3 scripts/analysis/compute_pseudocritical_temperatures.py \
+    --input-dir results/multihistogram/square/cell \
+    --lattice-type square \
+    --representation cell \
+    --output-dir data/analysis_csv
+
+python3 scripts/analysis/compute_pseudocritical_temperatures.py \
+    --input-dir results/multihistogram/triangular/vertex \
+    --lattice-type triangular \
+    --representation vertex \
+    --output-dir data/analysis_csv
+```
+
+The processed files are written under `data/analysis_csv/<lattice_type>/<representation>/`. Subsequent FSS and figure-generation steps are documented in [Analysis and figure reproduction](analysis_workflow.md).
+
+## Reproducibility and data availability
+
+The parameter table, source code, build instructions, and workflow scripts are versioned in the repository. Temperature lists, prepared configuration files, and multihistogram outputs are generated by the workflow.
+
+The complete production time series and multihistogram datasets are not stored in the Git repository. Full reproduction from raw measurements requires access to those datasets or rerunning the simulations.
+
+The current C++ implementation reports autocorrelation estimates and selected block lengths during execution. Their reliability, and the sensitivity of uncertainties to block length, should be assessed using the statistical diagnostics described in [Analysis and figure reproduction](analysis_workflow.md).

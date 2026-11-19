@@ -1,90 +1,137 @@
 # Software requirements
 
-This repository contains C, C++, Bash, and Python code used for two-dimensional Ising model simulations, multihistogram reweighting, and figure generation.
+This repository contains C, C++, Bash, and Python code for two-dimensional Ising simulations, multihistogram reweighting, statistical analysis, diagnostics, and figure generation.
 
 ## System requirements
 
-The workflow is intended for a Unix-like environment with:
+The workflow is intended for a Unix-like environment, preferably Linux, with:
 
-* Bash
-* GNU Make
-* GCC
-* G++
-* awk
-* standard Unix command-line tools
+- Bash
+- GNU Make
+- A C compiler supporting C11 (GCC is recommended)
+- G++ for the C++ multihistogram code and the autocorrelation diagnostics
+- Python 3 and `pip`
+- `awk`, `sed`, `find`, `sort`, `head`, `paste`, `wc`, and other standard command-line utilities
+- GNU `time`, for the `-v` option used by the simulation runners
 
-The scripts are written as portable Bash scripts and do not require a specific job scheduler.
+Some shell scripts use GNU-specific features, such as `sort -V`, and the simulation runners invoke `time -v`. Consequently, the scripts are not guaranteed to run unchanged on every Unix-like system (for example, macOS with its default BSD utilities).
 
-## C/C++ requirements
+The provided Bash runners do not depend on a particular job scheduler. Large production runs can be submitted to a cluster scheduler separately.
 
-The two-dimensional Ising simulation code is written in C.
+## C and C++ compilation
 
-The multihistogram reweighting code is written in C++.
+### Simulation code
 
-The default builds use:
+The simulation code is located in `src/simulation/`. Its Makefile explicitly uses the following C compilation options:
 
-* `gcc` for the simulation code
-* `g++` for the multihistogram code
-* C11 for the simulation code
-* C++14 for the multihistogram code
+```text
+-std=c11 -O3 -Wall -pedantic
+```
 
-## External C/C++ dependencies
+It compiles the square- and triangular-lattice programs for both the `cell` and `vertex` constructions, for the supported lattice sizes.
 
-### RANLUX
+From the repository root:
 
-A local copy of RANLUX used by the simulation code is included in:
+```bash
+make -C src/simulation CC=gcc
+```
 
-```text id="qcrw8n"
+The explicit `CC=gcc` selects GCC. Without this override, GNU Make may use the compiler configured as `cc` in its environment or built-in defaults.
+
+### Multihistogram code
+
+The multihistogram source is located in `src/multihistogram/` and is compiled with `g++`:
+
+```bash
+make -C src/multihistogram
+```
+
+This produces the executable:
+
+```text
+src/multihistogram/Rw
+```
+
+The multihistogram Makefile uses `-O2` and defines `SSE2` and `AVX2` preprocessor macros. It does **not** explicitly select a C++ language standard using a `-std=...` flag: the language mode is therefore determined by the compiler's default settings.
+
+The presence of architecture-related macros makes it particularly important to check compatibility when building on a different platform or CPU architecture. The repository does not currently provide a documented, platform-independent build configuration.
+
+## Bundled C/C++ dependencies
+
+The simulation includes RANLUX source files under:
+
+```text
 src/simulation/ranlux-3.4/
 ```
 
-The multihistogram source also contains the RANLUX files required by that component.
+The multihistogram component also includes its required RANLUX implementation (for example, `ranlxs.cpp`). These sources are built locally; a separate RANLUX installation is not required.
 
-No additional external C/C++ libraries are required by the current two-dimensional workflow.
+The compilation rules do not specify additional third-party C/C++ libraries beyond the bundled source and the standard toolchain/runtime libraries.
 
-## Python requirements
+## Python dependencies
 
-Python is used for post-processing and figure generation.
+Python is used for statistical analysis, diagnostics, finite-size-scaling fits, and figure generation.
 
-Install the Python dependencies from the repository root with:
+From the repository root, install the dependencies with:
 
-```bash id="17m7me"
-python -m pip install -r requirements.txt
+```bash
+python3 -m pip install -r requirements.txt
 ```
 
-The current Python requirements are:
+The repository currently pins these versions:
 
-* numpy
-* pandas
-* matplotlib
-* scipy
+| Package | Version |
+|---|---|
+| NumPy | `2.4.6` |
+| pandas | `3.0.5` |
+| Matplotlib | `3.11.1` |
+| SciPy | `1.17.1` |
 
-## Building the simulation code
+These are the versions specified in `requirements.txt`; they are not a guarantee that every operating system or Python version is supported. Use a Python interpreter for which `pip` can install all pinned packages.
 
-From the repository root:
+A virtual environment is recommended to avoid conflicts with system-wide packages:
 
-```bash id="d09ywn"
-cd src/simulation
-make
-cd ../..
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
 ```
 
-This builds the square- and triangular-lattice simulation executables.
+## Additional requirements for autocorrelation diagnostics
 
-## Building the multihistogram code
+The scripts:
 
-From the repository root:
+- `scripts/analysis/diagnose_autocorr.py`
+- `scripts/analysis/analyze_block_bootstrap.py`
 
-```bash id="rjq2pk"
-cd src/multihistogram
-make
-cd ../..
+compile a small temporary C++ driver and call the repository's existing `AutoCorr` implementation. They therefore require `g++` at **execution time**, not just during the initial project build.
+
+The source and header are located at:
+
+```text
+src/multihistogram/Autocorr.cpp
+src/multihistogram/Autocorr.h
 ```
 
-This builds the multihistogram executable `Rw`.
+For these scripts, pass the source explicitly using:
 
-## Generated data
+```bash
+--autocorr-source src/multihistogram/Autocorr.cpp
+```
 
-The simulation and multihistogram workflows generate output files locally.
+The scripts search for the matching header in the source directory by default. Neither script runs the multihistogram calculation; both are diagnostics of previously recorded Monte Carlo time series.
 
-Large simulation outputs and processed datasets are distributed separately from the source-code repository.
+## Reproducing figures versus regenerating raw data
+
+There are two distinct levels of reproduction:
+
+1. **Figures from processed CSVs.** Install the Python dependencies and run the plotting scripts. This does not require rebuilding or rerunning the C/C++ simulation and multihistogram programs.
+2. **Full simulation and analysis workflow.** Build both C/C++ components, run simulations, prepare multihistogram inputs, perform reweighting, and run the analysis scripts. This requires substantially more computing time and storage.
+
+The repository includes selected processed CSVs and figures. The complete raw simulation and multihistogram datasets are not stored in the Git repository.
+
+For commands and expected input layouts, see:
+
+- [Simulation workflow](simulation_workflow.md)
+- [Multihistogram workflow](multihistogram_workflow.md)
+- [Analysis workflow](analysis_workflow.md)

@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 
 import argparse
@@ -13,9 +12,9 @@ DEFAULT_SIZES = [
     512, 768, 1024, 1536, 2048, 3072,
 ]
 
-DEFAULT_OUTPUT_DIR = Path(
-    "/data/home/mpx641/ising-reproducibility/data/analysis_csv"
-)
+# Resolve the repository root from scripts/analysis/ regardless of CWD.
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_OUTPUT_DIR = REPO_ROOT / "data" / "analysis_csv"
 
 COLUMN_INDEX = {
     "ec": 4,
