@@ -72,6 +72,8 @@ The compilation rules do not specify additional third-party C/C++ libraries beyo
 
 Python is used for statistical analysis, diagnostics, finite-size-scaling fits, and figure generation.
 
+The analysis was performed using Python 3.11.7 on the Apocrita HPC cluster, with the `python/3.11.7-gcc-12.2.0` module. The Python package dependencies are specified in `requirements.txt`.
+
 From the repository root, install the dependencies with:
 
 ```bash

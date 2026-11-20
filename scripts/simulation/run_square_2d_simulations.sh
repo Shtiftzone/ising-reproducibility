@@ -41,14 +41,14 @@ fi
 
 command -v awk >/dev/null 2>&1 || { echo "Missing awk."; exit 1; }
 
-TIME_BIN="/usr/bin/time"
-if [[ ! -x "$TIME_BIN" ]]; then
-    TIME_BIN="$(command -v time || true)"
-fi
+TIME_CMD=()
 
-if [[ -z "${TIME_BIN:-}" ]]; then
-    echo "Could not find time command."
-    exit 1
+if [[ -x /usr/bin/time ]] && /usr/bin/time -v true >/dev/null 2>&1; then
+    TIME_CMD=(/usr/bin/time -v)
+elif command -v gtime >/dev/null 2>&1 && gtime -v true >/dev/null 2>&1; then
+    TIME_CMD=(gtime -v)
+else
+    echo "GNU time unavailable; running without resource timing."
 fi
 
 SIZES=(64 96 128 192 256 384 512 768 1024 1536 2048 3072)
@@ -87,7 +87,7 @@ while awk -v t="$T" -v end="$T_END" 'BEGIN { exit !(t <= end + 1e-12) }'; do
 
         echo "Running square lattice, construction=$CONSTRUCTION, L=$SIZE, T=$TEMP_FMT"
 
-        "$TIME_BIN" -v "$EXEC" "$T" "$NCONF" "$SEED_FILE" \
+        "${TIME_CMD[@]}" "$EXEC" "$T" "$NCONF" "$SEED_FILE" \
             "${SIZE_DIR}/mefile.txt" \
             "${SIZE_DIR}/bpfile.txt" \
             "${SIZE_DIR}/bnfile.txt" \

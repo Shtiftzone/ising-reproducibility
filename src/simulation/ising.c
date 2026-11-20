@@ -177,21 +177,6 @@ int main(int argc, char *argv[])
 		metro_update(T);
 		wolff_update(Nwolff, p);
 
-		//Save configuration to file
-		/*#ifdef DIM
-		if (DIM == 2) {
-			char filename[50];
-			sprintf(filename, "spin_config_%04d.txt", i);
-			FILE *spinfile = fopen(filename, "w");
-			for (int x = 0; x < L; x++) {
-				for (int y = 0; y < L; y++) {
-					fprintf(spinfile, "%d ", s[x + y * L]);
-				}
-				fprintf(spinfile, "\n");
-			}
-			fclose(spinfile);
-		}
-		#endif*/
 }
 
     // Starting simulation
