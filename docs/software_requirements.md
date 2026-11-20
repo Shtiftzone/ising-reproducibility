@@ -125,10 +125,10 @@ The scripts search for the matching header in the source directory by default. N
 
 There are two distinct levels of reproduction:
 
-1. **Figures from processed CSVs.** Install the Python dependencies and run the plotting scripts. This does not require rebuilding or rerunning the C/C++ simulation and multihistogram programs.
+1. **Figures from processed CSVs.** Install the Python dependencies, obtain the required processed CSVs from the external data archive (once available) or generate them locally, and place them in the documented `data/analysis_csv/` and `data/table_csv/` directories. The plotting scripts can then be run without rebuilding or rerunning the C/C++ simulation and multihistogram programs.
 2. **Full simulation and analysis workflow.** Build both C/C++ components, run simulations, prepare multihistogram inputs, perform reweighting, and run the analysis scripts. This requires substantially more computing time and storage.
 
-The repository includes selected processed CSVs and figures. The complete raw simulation and multihistogram datasets are not stored in the Git repository.
+The Git repository contains source code, scripts, documentation, dependency specifications, and configuration files, including `data/analysis_parameters/reweighting_windows.csv`. Raw simulation data, prepared multihistogram input, reweighting outputs, processed CSVs, tables, and generated figures are not tracked in Git. These data products are intended to be distributed separately through an external data archive. Until the archive is available, they must be generated locally or supplied from existing datasets.
 
 For commands and expected input layouts, see:
 

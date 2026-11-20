@@ -24,7 +24,7 @@ The code supports square and triangular lattices and two representations of spin
 
 The principal observables include magnetization, energy, the symmetrized Euler characteristic, and a related observable `d`. The analysis uses multihistogram reweighting to estimate pseudocritical temperatures, performs finite-size-scaling (FSS) fits, and compares subleading corrections on the square lattice.
 
-The C/C++ simulation and reweighting code can be rebuilt locally. Large raw simulation and multihistogram datasets are **not** included in the Git repository. Selected processed CSVs and figures **are** tracked, so many plots can be regenerated without rerunning production simulations.
+The C/C++ simulation and reweighting code can be rebuilt locally. The Git repository contains source code, scripts, documentation, and the multihistogram temperature-window configuration (`data/analysis_parameters/reweighting_windows.csv`). Raw simulation data, multihistogram outputs, processed CSVs, tables, and figures are not tracked in Git. Generated data products must be created locally or obtained from a separate data archive.
 
 ## Repository layout
 
@@ -46,21 +46,22 @@ docs/
   software_requirements.md
 
 data/
-  analysis_csv/           Processed observables, pseudocritical peaks,
-                          resolution data and paired FSS results
-  table_csv/              FSS scan tables
-  analysis_parameters/    Parameters used in the analysis
+  analysis_csv/           Generated analysis CSVs (not tracked)
+  table_csv/              Generated FSS scan tables (not tracked)
+  analysis_parameters/    Reweighting temperature windows (tracked)
   temperatures/           Generated temperature-grid files (not tracked)
   eul2d/                 Generated multihistogram input (not tracked)
 
 results/
-  figures/                Selected generated figures (tracked)
+  square_cell_simulations/       Raw simulation output (not tracked)
+  triangular_vertex_simulations/ Raw simulation output (not tracked)
+  figures/                Generated figures (not tracked)
   multihistogram/         Generated reweighting results (not tracked)
 
 requirements.txt          Python dependencies
 ```
 
-Generated directories are populated by the relevant scripts. The repository already includes some processed data products; it is not necessary to rerun the simulation to regenerate figures from these files.
+Generated directories are populated by the relevant scripts or by restoring files from the external data archive. To regenerate figures without rerunning simulations, the required processed CSVs must first be placed in the directories shown above.
 
 ## Requirements
 
@@ -82,9 +83,9 @@ The multihistogram executable is `src/multihistogram/Rw`.
 
 See [software requirements](docs/software_requirements.md) for build details.
 
-## Reproduce figures using the included CSV files
+## Reproduce figures from processed CSV files
 
-This is the shortest route when only the existing processed-data plots are needed. Run from the repository root:
+This is the shortest route when only the plots are needed. First obtain the processed CSV files from the external data archive (once available), or generate them using the analysis scripts, and place them under `data/analysis_csv/` and `data/table_csv/` following the documented directory structure. Then run the following commands from the repository root:
 
 ```bash
 for combo in "square cell" "triangular vertex"; do
@@ -314,15 +315,15 @@ Additional scripts under `scripts/analysis/` provide autocorrelation, cross-temp
 
 ## Data availability and reproducibility limits
 
-The Git repository contains source code, scripts, selected analysis CSVs, selected FSS table CSVs, and figure PNGs.
+The Git repository contains source code, scripts, documentation, dependency specifications, and configuration files, including `data/analysis_parameters/reweighting_windows.csv`.
 
-It does **not** contain the complete raw time series, prepared multihistogram input, or complete reweighting outputs needed to rerun every analysis step from scratch.
+Raw simulation time series, prepared multihistogram input, reweighting outputs, processed analysis CSVs, FSS tables, and generated figures are **not tracked in Git**. They are intended to be distributed separately in a data archive.
 
 **External data archive:** link to be added after archival release.
 
-For full reproduction, place the external simulation/reweighting data in the directory layouts described above (or supply matching directories to scripts that accept path arguments).
+For full reproduction, place the external simulation and reweighting data in the directory layouts described above (or supply matching directories to scripts that accept path arguments). Alternatively, regenerate the data by running the documented simulation and analysis workflow.
 
-For figure reproduction, the processed CSV files tracked in this repository are sufficient for the supported plotting scripts.
+For figure reproduction alone, place the externally provided or locally generated processed CSVs under `data/analysis_csv/` and `data/table_csv/`. The plotting scripts can then regenerate the figures without rerunning the simulations or multihistogram reweighting.
 
 Production simulations may be expensive at the largest lattice sizes and can be scheduled or parallelized according to the local computing environment.
 

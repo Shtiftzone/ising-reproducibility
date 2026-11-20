@@ -26,12 +26,12 @@ results/square_cell_simulations/                 Raw square/cell measurements (e
 results/triangular_vertex_simulations/          Raw triangular/vertex measurements (external)
 results/multihistogram/<lattice>/<representation>/
                                                 Multihistogram outputs (external)
-data/analysis_csv/<lattice>/<representation>/  Processed analysis CSVs
-data/table_csv/<lattice>/<representation>/     FSS tables
-results/figures/<lattice>/<representation>/   Generated figures
+data/analysis_csv/<lattice>/<representation>/  Generated analysis CSVs (not tracked)
+data/table_csv/<lattice>/<representation>/     Generated FSS tables (not tracked)
+results/figures/<lattice>/<representation>/   Generated figures (not tracked)
 ```
 
-Large raw simulation time series and multihistogram outputs are distributed separately. Selected processed CSVs and figures are included in the repository, so the plotting scripts can be run without repeating the production simulations.
+The Git repository contains source code, analysis scripts, documentation, and configuration files, including `data/analysis_parameters/reweighting_windows.csv`. Raw simulation measurements, multihistogram outputs, processed analysis CSVs, FSS tables, and generated figures are **not tracked in Git**. These data products must be generated locally or restored from a separately distributed data archive when available. Once the required processed CSVs have been placed in the directory structure above, the plotting scripts can reproduce the figures without rerunning the production simulations.
 
 ## Workflow overview
 
@@ -303,7 +303,7 @@ The unique-value count is denoted by `K`. The plotted ratios are `K_EC/K_M`, `K_
 
 ### Commands
 
-The processed data currently tracked in the repository use `T=2.26900` for `square/cell` and `T=3.64100` for `triangular/vertex`.
+The distribution-resolution analyses documented here use `T=2.26900` for `square/cell` and `T=3.64100` for `triangular/vertex`. Their processed output files are not tracked in Git.
 
 ```bash
 python3 scripts/analysis/compute_distribution_resolution.py \
@@ -329,7 +329,7 @@ The plotting script reads only `entropy_effective_resolution.csv` and does not g
 
 ## 6. Figure generation from processed CSVs
 
-**All commands below use existing processed CSV files.** They do not rerun the simulations, multihistogram reweighting, or statistical-analysis scripts.
+**The commands below require processed CSV files to be present locally.** These files are not included in the Git repository. First restore the necessary CSVs under `data/analysis_csv/` and `data/table_csv/` from the separate data archive (once available), or generate them using the analysis steps documented above. The plotting commands do not rerun the simulations, multihistogram reweighting, or statistical-analysis scripts.
 
 ```bash
 for combo in "square cell" "triangular vertex"; do
@@ -574,4 +574,4 @@ These five scripts are supporting diagnostics, not additional steps required to 
 - The raw temperature-dependent observable plots use nonoverlapping block-jackknife errors, with their own autocorrelation-based block-size selection.
 - The simulation runners use `Ndecorr = 10` between saved measurements. In the current implementation, the seed file is reused rather than updated with an independent seed for every run. Neither a lack of detected cross-stream correlation nor reuse of the same seed should be described as evidence of independent random-number initialization.
 
-The diagnostics require raw or prepared simulation data, whereas the processed data included in the repository are sufficient for the documented figure-reproduction commands. The example output directories under `data/analysis_csv/diagnostics/` are choices for organizing newly generated diagnostics; they are **not required input paths** for the principal plotting scripts.
+The diagnostics require raw or prepared simulation data. The figure-reproduction commands require processed CSVs restored from the separate data archive (once available) or generated locally; these inputs are not tracked in Git. The example output directories under `data/analysis_csv/diagnostics/` are choices for organizing newly generated diagnostics; they are **not required input paths** for the principal plotting scripts.
