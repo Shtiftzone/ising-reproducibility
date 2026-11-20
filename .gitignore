@@ -1,45 +1,60 @@
+
+# Python
 __pycache__/
 *.pyc
 .venv/
 .env
 .ipynb_checkpoints/
 
-data/raw/
-
-# Outputs
+# Logs and temporary files
 MH*/
 simulation_logs*.txt
 *.log
 *.out
 *.err
+*~
+.DS_Store
 
-# Build artifacts
+# Compilation artifacts
 *.o
 *.d
 
-# Executables
+# Simulation executables
 ising2d-*
 isingtr-*
 
-# Raw data and generated results
-data/raw/
-results/*
-!results/figures/
-!results/figures/**
-
-# Multihistogram build artifacts / executables
+# Multihistogram executables
 src/multihistogram/Ac
 src/multihistogram/Autc
 src/multihistogram/Autoc
 src/multihistogram/Rw
 src/multihistogram/XTERM_VERSION*
 
-# Generated multihistogram input data
-data/eul2d/
-data/temperatures/
+# Raw and prepared simulation data
+/data/raw/
+/data/eul2d/
+/data/temperatures/
+
+# Generated analysis data and tables
+/data/analysis_csv/
+/data/table_csv/
+/data/processed/*
+!/data/processed/.gitkeep
+
+# All simulation, multihistogram and figure results
+/results/
+
+# Generated data files
 *.dat
+*.csv
 
-# Generated simulation outputs
-results/simulations/
+# Keep the multihistogram temperature windows
+!/data/analysis_parameters/reweighting_windows.csv
 
-.venv/
+# Generated plots and figures
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.eps
+*.pdf
