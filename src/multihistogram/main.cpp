@@ -1,8 +1,9 @@
-// Circular moving block bootstrap for the 2D square-lattice Ising multihistogram.
-// Analyzes |ec_sym|/L^2, |M|/L^2, and |d|/L^2.
+// Circular moving block bootstrap for the 2D Ising multihistogram.
+// Supports square and triangular lattices.
+// Analyzes |EC_sym|/L^2, |M|/L^2, and |D|/L^2.
+// Uses D = M + 2*EC_sym (square) or D = M + EC_sym (triangular).
 // Compatible output columns with the original program.
-// Usage: program temperatures_file L dimension results_file T_min T_max n_points output_file [input_data_dir]
-// Optional environment variables: ISING_BLOCK_FACTOR (default 10),
+// Usage: program temperatures_file L dimension results_file T_min T_max n_points output_file input_data_dir lattice_type// Optional environment variables: ISING_BLOCK_FACTOR (default 10),
 // ISING_BOOTSTRAP_SEED (default 123456), ISING_BOOTSTRAP_REPS (default 200).
 #include "MultiHistRW.h"
 #include "Autocorr.h"
